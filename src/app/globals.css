@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  /* Default/Summer theme variables */
+  --season-bg: #fffbf4;
+  --season-card: #ffffff;
+  --season-accent: #f39c12;
+  --season-text: #2c3e50;
+  --season-muted: #64748b;
+  --season-border: #f1f5f9;
+  --season-accent-light: #fef9c3;
+  --season-gradient: linear-gradient(135deg, #fffcf6 0%, #fef3c7 100%);
+}
+
+.theme-summer {
+  --season-bg: #fffbf4;
+  --season-card: #ffffff;
+  --season-accent: #f39c12;
+  --season-text: #2c3e50;
+  --season-muted: #64748b;
+  --season-border: #f3e8ff; /* soft theme border */
+  --season-accent-light: #fef9c3;
+  --season-gradient: linear-gradient(135deg, #fffcf6 0%, #fef3c7 100%);
+}
+
+.theme-winter {
+  --season-bg: #f4f8fb;
+  --season-card: #ffffff;
+  --season-accent: #3498db;
+  --season-text: #1e293b;
+  --season-muted: #64748b;
+  --season-border: #e2e8f0;
+  --season-accent-light: #e0f2fe;
+  --season-gradient: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+@theme {
+  --color-season-bg: var(--season-bg);
+  --color-season-card: var(--season-card);
+  --color-season-accent: var(--season-accent);
+  --color-season-text: var(--season-text);
+  --color-season-muted: var(--season-muted);
+  --color-season-border: var(--season-border);
+  --color-season-accent-light: var(--season-accent-light);
+  --background-image-season-grad: var(--season-gradient);
+}
+
+body {
+  background-color: var(--season-bg);
+  color: var(--season-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.theme-winter .glass-panel {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Transitions for cards and interactive components */
+.transition-season-all {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--season-accent);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--season-accent);
+}
