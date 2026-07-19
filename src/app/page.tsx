@@ -23,6 +23,7 @@ import JournalView from '@/components/JournalView';
 import StatsView from '@/components/StatsView';
 import SettingsView from '@/components/SettingsView';
 import AIAssistant from '@/components/AIAssistant';
+import StellaSuggestionsModal from '@/components/StellaSuggestionsModal';
 import { 
   Plus, 
   Sparkles, 
@@ -48,6 +49,7 @@ export default function Home() {
   const [selectedHobby, setSelectedHobby] = useState<Hobby | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   
   // Mobile Nav/Sidebar States
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -109,6 +111,48 @@ export default function Home() {
     try {
       const updated = toggleDailyFocus(id);
       setHobbies(updated);
+    } catch (error: any) {
+      showToast(error.message);
+    }
+  };
+
+  const handleSelectSuggestedCustomize = (suggested: any) => {
+    setSelectedHobby({
+      id: '', // Empty means new hobby
+      title: suggested.title,
+      category: suggested.category,
+      icon: suggested.icon,
+      color_theme: suggested.color_theme,
+      last_brain_dump: suggested.last_brain_dump,
+      micro_goal: suggested.micro_goal,
+      notes: suggested.notes,
+      is_daily_focus: false,
+      progress: 0,
+      season: season,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    setIsSuggestionsOpen(false);
+    setIsEditOpen(true);
+  };
+
+  const handleSelectSuggestedDirect = (suggested: any) => {
+    try {
+      addHobby({
+        title: suggested.title,
+        category: suggested.category,
+        season: season,
+        icon: suggested.icon,
+        color_theme: suggested.color_theme,
+        last_brain_dump: suggested.last_brain_dump,
+        micro_goal: suggested.micro_goal,
+        notes: suggested.notes,
+        is_daily_focus: false,
+        progress: 0
+      });
+      setHobbies(getHobbies());
+      setIsSuggestionsOpen(false);
+      showToast(`Hobby "${suggested.title}" successfully added by Stella!`);
     } catch (error: any) {
       showToast(error.message);
     }
@@ -421,6 +465,15 @@ export default function Home() {
                   
                   {/* Category Filter Chips and Add Button */}
                   <div className="flex items-center flex-wrap gap-2">
+                    {/* Suggest Hobbies Button */}
+                    <button
+                      onClick={() => setIsSuggestionsOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-season-accent/30 text-season-accent hover:bg-season-accent/10 font-bold text-xs cursor-pointer"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Suggest Hobbies
+                    </button>
+
                     {/* Add Card Button */}
                     <button
                       onClick={() => {
@@ -706,6 +759,16 @@ export default function Home() {
         }}
         onSave={handleSaveHobby}
         onDelete={handleDeleteHobby}
+      />
+
+      {/* Stella seasonal hobby suggestions modal */}
+      <StellaSuggestionsModal
+        isOpen={isSuggestionsOpen}
+        onClose={() => setIsSuggestionsOpen(false)}
+        season={season}
+        existingHobbies={hobbies}
+        onAddDirect={handleSelectSuggestedDirect}
+        onCustomize={handleSelectSuggestedCustomize}
       />
 
     </div>

@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Hobby } from '@/lib/storage';
-import { X, Check } from 'lucide-react';
+import { X, Check, Sparkles, Loader2 } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
+
 
 interface HobbyFormData {
   id?: string;
@@ -40,6 +42,35 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
   const [notes, setNotes] = useState('');
   const [isDailyFocus, setIsDailyFocus] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+
+  const getIconComponent = (iconName: string) => {
+    const normalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
+    const IconComp = (LucideIcons as any)[normalized] || (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
+    return <IconComp className="h-4 w-4" />;
+  };
+
+  const handleAutoSuggest = async (titleVal: string, catVal: string) => {
+    if (!titleVal.trim() || isSuggesting) return;
+    setIsSuggesting(true);
+    try {
+      const response = await fetch('/api/generate-hobby-meta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: titleVal, category: catVal, season })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.category && !catVal.trim()) setCategory(data.category);
+        if (data.icon) setIcon(data.icon);
+        if (data.color_theme) setColorTheme(data.color_theme);
+      }
+    } catch (err) {
+      console.error('Failed to auto-suggest metadata:', err);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
 
   // Load hobby details if editing
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -113,72 +144,36 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Icon & Color Selector */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-2">
-              Icon & Theme Color
-            </label>
-            
-            <div className="flex flex-col gap-3 p-3.5 bg-season-bg/60 rounded-2xl border border-season-border">
-              {/* Icons row */}
-              <div className="flex flex-wrap gap-2 justify-center">
-                {AVAILABLE_ICONS.map((i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setIcon(i)}
-                    className={`
-                      px-3 py-1.5 rounded-lg text-xs font-semibold capitalize border transition-all
-                      ${icon === i 
-                        ? 'bg-season-accent text-white border-season-accent shadow-sm'
-                        : 'bg-season-card text-season-text border-season-border hover:bg-season-bg'
-                      }
-                    `}
-                  >
-                    {i}
-                  </button>
-                ))}
-              </div>
-
-              {/* Colors row */}
-              <div className="flex justify-center gap-3 mt-1.5">
-                {AVAILABLE_COLORS.map((c) => {
-                  const bgClass = {
-                    purple: 'bg-purple-500 hover:bg-purple-600 shadow-purple-500/20',
-                    green: 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20',
-                    orange: 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/20',
-                    blue: 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/20',
-                    pink: 'bg-pink-500 hover:bg-pink-600 shadow-pink-500/20'
-                  }[c];
-
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setColorTheme(c)}
-                      className={`
-                        w-6 h-6 rounded-full flex items-center justify-center transition-all scale-100 hover:scale-110 shadow-md ${bgClass}
-                      `}
-                    >
-                      {colorTheme === c && <Check className="h-3.5 w-3.5 text-white stroke-[3px]" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
           {/* Title and Category */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="hobby-title" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5">
-                Hobby Title
+              <label htmlFor="hobby-title" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5 flex items-center justify-between">
+                <span>Hobby Title</span>
+                <button
+                  type="button"
+                  onClick={() => handleAutoSuggest(title, category)}
+                  disabled={!title.trim() || isSuggesting}
+                  className="p-1 rounded-md text-season-accent hover:bg-season-bg disabled:opacity-50 transition-all flex items-center gap-1 text-[10px] font-bold"
+                  title="Auto-generate category, icon & theme with Stella AI"
+                >
+                  {isSuggesting ? (
+                    <Loader2 className="h-3 w-3 animate-spin text-season-accent" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 text-season-accent" />
+                  )}
+                  <span>Stella Suggest</span>
+                </button>
               </label>
               <input
                 id="hobby-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onBlur={() => {
+                  if (title.trim()) {
+                    handleAutoSuggest(title, category);
+                  }
+                }}
                 placeholder="e.g. Dave the Diver"
                 className="w-full px-4 py-2.5 rounded-xl border border-season-border bg-season-card text-season-text text-sm font-semibold focus:outline-hidden focus:border-season-accent"
                 required
@@ -188,24 +183,39 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
               <label htmlFor="hobby-category" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5">
                 Category
               </label>
-              <input
-                id="hobby-category"
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. gaming, music, coding"
-                className="w-full px-4 py-2.5 rounded-xl border border-season-border bg-season-card text-season-text text-sm font-semibold focus:outline-hidden focus:border-season-accent"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="hobby-category"
+                  type="text"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  onBlur={() => {
+                    if (title.trim()) {
+                      handleAutoSuggest(title, category);
+                    }
+                  }}
+                  placeholder="e.g. gaming, music, coding"
+                  className="w-full px-4 py-2.5 rounded-xl border border-season-border bg-season-card text-season-text text-sm font-semibold focus:outline-hidden focus:border-season-accent"
+                  required
+                />
+                {isSuggesting && (
+                  <div className="absolute right-3 top-2.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-season-accent" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Last Brain Dump */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label htmlFor="brain-dump" className="block text-xs font-bold uppercase tracking-wider text-season-muted">
-                Last Brain Dump
-              </label>
+              <div>
+                <label htmlFor="brain-dump" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-0.5">
+                  Last Brain Dump
+                </label>
+                <span className="text-[10px] font-semibold text-season-muted block">tells your previous actions</span>
+              </div>
               <span className={`text-[10px] font-bold ${lastBrainDump.length > 300 ? 'text-red-500' : 'text-season-muted'}`}>
                 {lastBrainDump.length}/300
               </span>
@@ -223,9 +233,12 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
           {/* Micro-Goal */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label htmlFor="micro-goal" className="block text-xs font-bold uppercase tracking-wider text-season-muted">
-                Micro-Goal (Next Tiny Action)
-              </label>
+              <div>
+                <label htmlFor="micro-goal" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-0.5">
+                  Micro-Goal (Next Tiny Action)
+                </label>
+                <span className="text-[10px] font-semibold text-season-muted block">what should you achieve!</span>
+              </div>
               <span className={`text-[10px] font-bold ${microGoal.length > 150 ? 'text-red-500' : 'text-season-muted'}`}>
                 {microGoal.length}/150
               </span>
@@ -243,9 +256,12 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
           {/* Notes */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label htmlFor="hobby-notes" className="block text-xs font-bold uppercase tracking-wider text-season-muted">
-                Notes (Optional)
-              </label>
+              <div>
+                <label htmlFor="hobby-notes" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-0.5">
+                  Notes (Optional)
+                </label>
+                <span className="text-[10px] font-semibold text-season-muted block">things that you should do!</span>
+              </div>
               <span className={`text-[10px] font-bold ${notes.length > 200 ? 'text-red-500' : 'text-season-muted'}`}>
                 {notes.length}/200
               </span>
@@ -287,7 +303,8 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
           <div className="flex items-center justify-between p-3.5 bg-season-bg/60 rounded-2xl border border-season-border">
             <div>
               <span className="block text-xs font-bold text-season-text">Today&apos;s Focus</span>
-              <span className="text-[10px] font-semibold text-season-muted">Highlight this hobby on the dashboard today (max 2)</span>
+              <span className="text-[10px] font-semibold text-season-muted block">Highlight this hobby on the dashboard today (max 2)</span>
+              <span className="text-[9px] font-bold text-season-accent block mt-0.5">focus it or not!</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer select-none">
               <input 

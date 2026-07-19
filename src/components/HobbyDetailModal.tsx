@@ -2,23 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Hobby } from '@/lib/storage';
-import { 
-  X, 
-  Edit, 
-  Gamepad, 
-  Music, 
-  Book, 
-  Languages, 
-  Code, 
-  Activity, 
-  Utensils, 
-  Sparkles,
-  CheckCircle,
-  FileText,
-  Target,
-  ChevronRight,
-  Star
-} from 'lucide-react';
+import { X, Edit, CheckCircle, FileText, Target, ChevronRight, Star } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 interface HobbyDetailModalProps {
   hobby: Hobby | null;
@@ -50,33 +35,36 @@ export default function HobbyDetailModal({ hobby, isOpen, onClose, onEditClick, 
 
   const getIcon = (iconName: string) => {
     const classStyle = "h-12 w-12 stroke-[1.5]";
-    switch (iconName.toLowerCase()) {
-      case 'gamepad': return <Gamepad className={classStyle} />;
-      case 'music': return <Music className={classStyle} />;
-      case 'book': return <Book className={classStyle} />;
-      case 'languages': return <Languages className={classStyle} />;
-      case 'code': return <Code className={classStyle} />;
-      case 'activity': return <Activity className={classStyle} />;
-      case 'utensils': return <Utensils className={classStyle} />;
-      default: return <Sparkles className={classStyle} />;
-    }
+    const normalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
+    const IconComp = (LucideIcons as any)[normalized] || (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
+    return <IconComp className={classStyle} />;
   };
 
-  const colorThemes = {
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/50 bar-purple-500 badge-purple-50',
-    green: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50 bar-emerald-500 badge-emerald-50',
-    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50 bar-orange-500 badge-orange-50',
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/50 bar-blue-500 badge-blue-50',
-    pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-900/50 bar-pink-500 badge-pink-50',
-  }[hobby.color_theme] || 'bg-slate-100 text-slate-600 border-slate-200';
+  const getColorStyle = (color: string) => {
+    const presets: Record<string, { main: string, progress: string }> = {
+      purple: { main: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/50', progress: 'bg-purple-500' },
+      green: { main: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50', progress: 'bg-emerald-500' },
+      orange: { main: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-900/50', progress: 'bg-orange-500' },
+      blue: { main: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900/50', progress: 'bg-blue-500' },
+      pink: { main: 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 border-pink-200 dark:border-pink-900/50', progress: 'bg-pink-500' },
+    };
 
-  const progressColorClass = {
-    purple: 'bg-purple-500',
-    green: 'bg-emerald-500',
-    orange: 'bg-orange-500',
-    blue: 'bg-blue-500',
-    pink: 'bg-pink-500'
-  }[hobby.color_theme] || 'bg-slate-500';
+    if (presets[color.toLowerCase()]) {
+      return { isPreset: true, classes: presets[color.toLowerCase()], style: {} as any };
+    }
+
+    const hexColor = color.startsWith('#') ? color : '#6366f1';
+    return {
+      isPreset: false,
+      classes: { main: '', progress: '' },
+      style: {
+        main: { backgroundColor: `${hexColor}15`, color: hexColor, borderColor: `${hexColor}30` },
+        progress: { backgroundColor: hexColor }
+      }
+    };
+  };
+
+  const colorInfo = getColorStyle(hobby.color_theme);
 
   const handleDoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,27 +124,30 @@ export default function HobbyDetailModal({ hobby, isOpen, onClose, onEditClick, 
           /* Inspect View Mode */
           <div className="space-y-6">
             {/* Visual Icon Header Card */}
-            <div className={`
-              flex flex-col items-center justify-center py-8 rounded-2xl border text-center relative overflow-hidden
-              ${colorThemes.split(' ').slice(0, 4).join(' ')}
-            `}>
-              <div className="absolute top-3 right-3 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/40 border border-white/20 uppercase tracking-wider backdrop-blur-xs">
+            <div 
+              className={`flex flex-col items-center justify-center py-8 rounded-2xl border text-center relative overflow-hidden ${colorInfo.isPreset ? colorInfo.classes.main : ''}`}
+              style={!colorInfo.isPreset ? colorInfo.style.main : undefined}
+            >
+              <div 
+                className="absolute top-3 right-3 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/40 border border-white/20 uppercase tracking-wider backdrop-blur-xs"
+                style={!colorInfo.isPreset ? { color: hobby.color_theme, borderColor: `${hobby.color_theme}40` } : undefined}
+              >
                 {hobby.category}
               </div>
-              <div className="p-4 bg-white/60 dark:bg-black/20 rounded-2xl shadow-sm mb-3">
+              <div className="p-4 bg-white/60 dark:bg-black/20 rounded-2xl shadow-sm mb-3 text-current">
                 {getIcon(hobby.icon)}
               </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{hobby.title}</h2>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 text-current">{hobby.title}</h2>
               
               {/* Progress Indicator */}
               <div className="mt-4 flex items-center gap-3 w-3/4 max-w-[200px]">
                 <div className="flex-1 h-2 bg-white/45 dark:bg-black/20 rounded-full overflow-hidden border border-white/10">
                   <div 
-                    className={`h-full rounded-full ${progressColorClass}`} 
-                    style={{ width: `${hobby.progress}%` }}
+                    className={`h-full rounded-full ${colorInfo.isPreset ? colorInfo.classes.progress : ''}`} 
+                    style={colorInfo.isPreset ? { width: `${hobby.progress}%` } : { ...colorInfo.style.progress, width: `${hobby.progress}%` }}
                   />
                 </div>
-                <span className="text-xs font-bold">{hobby.progress}% Completed</span>
+                <span className="text-xs font-bold text-current">{hobby.progress}% Completed</span>
               </div>
             </div>
 

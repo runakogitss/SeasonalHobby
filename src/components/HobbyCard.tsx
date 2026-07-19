@@ -2,22 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Hobby } from '@/lib/storage';
-import { 
-  Gamepad, 
-  Music, 
-  Book, 
-  Languages, 
-  Code, 
-  Activity, 
-  Utensils, 
-  Sparkles,
-  Star,
-  MoreVertical,
-  Edit2,
-  Trash2,
-  Eye,
-  Clock
-} from 'lucide-react';
+import { Star, MoreVertical, Edit2, Trash2, Eye, Clock } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 
 interface HobbyCardProps {
   hobby: Hobby;
@@ -44,70 +30,73 @@ export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDel
   }, []);
 
   const getIcon = (iconName: string) => {
-    switch (iconName.toLowerCase()) {
-      case 'gamepad': return <Gamepad className="h-5 w-5" />;
-      case 'music': return <Music className="h-5 w-5" />;
-      case 'book': return <Book className="h-5 w-5" />;
-      case 'languages': return <Languages className="h-5 w-5" />;
-      case 'code': return <Code className="h-5 w-5" />;
-      case 'activity': return <Activity className="h-5 w-5" />;
-      case 'utensils': return <Utensils className="h-5 w-5" />;
-      default: return <Sparkles className="h-5 w-5" />;
-    }
+    const normalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
+    const IconComp = (LucideIcons as any)[normalized] || (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
+    return <IconComp className="h-5 w-5" />;
   };
 
   // Color theme mapping
   const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'purple':
-        return {
-          bg: 'bg-purple-100 dark:bg-purple-900/30',
-          text: 'text-purple-600 dark:text-purple-400',
-          border: 'border-purple-200 dark:border-purple-900/50',
-          bar: 'bg-purple-500',
-          badge: 'bg-purple-50 text-purple-700 border-purple-200'
-        };
-      case 'green':
-        return {
-          bg: 'bg-emerald-100 dark:bg-emerald-900/30',
-          text: 'text-emerald-600 dark:text-emerald-400',
-          border: 'border-emerald-200 dark:border-emerald-900/50',
-          bar: 'bg-emerald-500',
-          badge: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-        };
-      case 'orange':
-        return {
-          bg: 'bg-orange-100 dark:bg-orange-900/30',
-          text: 'text-orange-600 dark:text-orange-400',
-          border: 'border-orange-200 dark:border-orange-900/50',
-          bar: 'bg-orange-500',
-          badge: 'bg-orange-50 text-orange-700 border-orange-200'
-        };
-      case 'blue':
-        return {
-          bg: 'bg-blue-100 dark:bg-blue-900/30',
-          text: 'text-blue-600 dark:text-blue-400',
-          border: 'border-blue-200 dark:border-blue-900/50',
-          bar: 'bg-blue-500',
-          badge: 'bg-blue-50 text-blue-700 border-blue-200'
-        };
-      case 'pink':
-        return {
-          bg: 'bg-pink-100 dark:bg-pink-900/30',
-          text: 'text-pink-600 dark:text-pink-400',
-          border: 'border-pink-200 dark:border-pink-900/50',
-          bar: 'bg-pink-500',
-          badge: 'bg-pink-50 text-pink-700 border-pink-200'
-        };
-      default:
-        return {
-          bg: 'bg-slate-100 dark:bg-slate-800',
-          text: 'text-slate-600 dark:text-slate-400',
-          border: 'border-slate-200 dark:border-slate-700',
-          bar: 'bg-slate-500',
-          badge: 'bg-slate-50 text-slate-700 border-slate-200'
-        };
+    const presets: Record<string, { bg: string, text: string, border: string, bar: string, badge: string }> = {
+      purple: {
+        bg: 'bg-purple-100 dark:bg-purple-900/30',
+        text: 'text-purple-600 dark:text-purple-400',
+        border: 'border-purple-200 dark:border-purple-900/50',
+        bar: 'bg-purple-500',
+        badge: 'bg-purple-50 text-purple-700 border-purple-200'
+      },
+      green: {
+        bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        text: 'text-emerald-600 dark:text-emerald-400',
+        border: 'border-emerald-200 dark:border-emerald-900/50',
+        bar: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      },
+      orange: {
+        bg: 'bg-orange-100 dark:bg-orange-900/30',
+        text: 'text-orange-600 dark:text-orange-400',
+        border: 'border-orange-200 dark:border-orange-900/50',
+        bar: 'bg-orange-500',
+        badge: 'bg-orange-50 text-orange-700 border-orange-200'
+      },
+      blue: {
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        text: 'text-blue-600 dark:text-blue-400',
+        border: 'border-blue-200 dark:border-blue-900/50',
+        bar: 'bg-blue-500',
+        badge: 'bg-blue-50 text-blue-700 border-blue-200'
+      },
+      pink: {
+        bg: 'bg-pink-100 dark:bg-pink-900/30',
+        text: 'text-pink-600 dark:text-pink-400',
+        border: 'border-pink-200 dark:border-pink-900/50',
+        bar: 'bg-pink-500',
+        badge: 'bg-pink-50 text-pink-700 border-pink-200'
+      }
+    };
+
+    if (presets[color.toLowerCase()]) {
+      return { isPreset: true, classes: presets[color.toLowerCase()], style: {} as any };
     }
+
+    const hexColor = color.startsWith('#') ? color : '#6366f1';
+    return {
+      isPreset: false,
+      classes: {
+        bg: '',
+        text: '',
+        border: '',
+        bar: '',
+        badge: ''
+      },
+      style: {
+        bg: { backgroundColor: `${hexColor}15`, color: hexColor, borderColor: `${hexColor}30` },
+        text: { color: hexColor },
+        border: { borderColor: `${hexColor}30` },
+        bar: { backgroundColor: hexColor },
+        badge: { backgroundColor: `${hexColor}08`, color: hexColor, borderColor: `${hexColor}20` }
+      }
+    };
   };
 
   const colors = getColorClasses(hobby.color_theme);
@@ -139,14 +128,20 @@ export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDel
       {/* Top Header Row */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className={`p-2.5 rounded-xl border ${colors.bg} ${colors.text} ${colors.border}`}>
+          <div 
+            className={`p-2.5 rounded-xl border ${colors.isPreset ? `${colors.classes.bg} ${colors.classes.text} ${colors.classes.border}` : ''}`}
+            style={!colors.isPreset ? colors.style.bg : undefined}
+          >
             {getIcon(hobby.icon)}
           </div>
           <div>
             <h3 className="font-bold text-base text-season-text group-hover:text-season-accent transition-colors">
               {hobby.title}
             </h3>
-            <span className="text-[11px] font-bold text-season-muted capitalize bg-season-bg px-2 py-0.5 rounded-md border border-season-border">
+            <span 
+              className="text-[11px] font-bold text-season-muted capitalize bg-season-bg px-2 py-0.5 rounded-md border border-season-border"
+              style={!colors.isPreset ? { color: hobby.color_theme, borderColor: `${hobby.color_theme}30` } : undefined}
+            >
               {hobby.category}
             </span>
           </div>
@@ -251,11 +246,14 @@ export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDel
           {/* Progress bar */}
           <div className="w-16 h-1.5 bg-season-bg rounded-full overflow-hidden border border-season-border">
             <div 
-              className={`h-full rounded-full ${colors.bar} transition-all duration-500`}
-              style={{ width: `${hobby.progress}%` }}
+              className={`h-full rounded-full ${colors.isPreset ? colors.classes.bar : ''} transition-all duration-500`}
+              style={colors.isPreset ? { width: `${hobby.progress}%` } : { ...colors.style.bar, width: `${hobby.progress}%` }}
             />
           </div>
-          <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold ${colors.badge}`}>
+          <span 
+            className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold ${colors.isPreset ? colors.classes.badge : ''}`}
+            style={!colors.isPreset ? colors.style.badge : undefined}
+          >
             {hobby.progress}%
           </span>
         </div>
