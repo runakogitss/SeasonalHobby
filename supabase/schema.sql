@@ -1,3 +1,5 @@
+-- SQL code to run via supabase!~
+
 -- Initialize custom system enums
 CREATE TYPE season_type AS ENUM ('summer', 'winter');
 -- Primary Hobbies Registry
