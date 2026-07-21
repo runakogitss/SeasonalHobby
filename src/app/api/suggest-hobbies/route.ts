@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-const SUMMER_FALLBACKS = [
+const FALLBACK_HOBBIES = [
   {
     title: 'Kayaking',
     category: 'outdoor',
@@ -17,7 +17,7 @@ const SUMMER_FALLBACKS = [
     category: 'gardening',
     icon: 'Scissors',
     color_theme: '#10b981',
-    last_brain_dump: 'Acquired a young juniper bonsai starter tree.',
+    last_brain_dump: 'Acquired a young bonsai starter tree.',
     micro_goal: 'Prune three minor overgrown shoots to set the shape.',
     notes: 'Soil needs to remain damp but well-drained.'
   },
@@ -38,10 +38,7 @@ const SUMMER_FALLBACKS = [
     last_brain_dump: 'Reviewed conversational greetings and basic pronouns.',
     micro_goal: 'Practice speaking five daily phrases aloud.',
     notes: 'Focus on roll-of-tongue pronunciation for double R consonants.'
-  }
-];
-
-const WINTER_FALLBACKS = [
+  },
   {
     title: 'Calisthenics Fit',
     category: 'fitness',
@@ -82,8 +79,7 @@ const WINTER_FALLBACKS = [
 
 export async function POST(req: NextRequest) {
   try {
-    const { season, existingHobbies } = await req.json();
-    const activeSeason = season || 'summer';
+    const { existingHobbies } = await req.json();
     const existingList = existingHobbies || [];
 
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -91,8 +87,8 @@ export async function POST(req: NextRequest) {
     if (apiKey) {
       const existingNames = existingList.map((h: any) => h.title).join(', ');
       
-      const systemInstruction = `You are Stella, the warm seasonal hobby planning advisor.
-Your job is to recommend exactly 4 interesting and highly creative hobbies for the user to try during the '${activeSeason}' season.
+      const systemInstruction = `You are Stella, the warm hobby planning advisor.
+Your job is to recommend exactly 4 interesting and highly creative hobbies for the user to try.
 The user already has the following hobbies registered: [${existingNames}]. Recommend DIFFERENT hobbies that are not on this list.
 
 For each suggested hobby, decide:
@@ -131,7 +127,7 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
             model: 'poolside/laguna-xs-2.1:free',
             messages: [
               { role: 'system', content: systemInstruction },
-              { role: 'user', content: `Suggest 4 new hobbies for ${activeSeason} season.` }
+              { role: 'user', content: 'Suggest 4 new creative hobbies.' }
             ],
             temperature: 0.7
           })
@@ -156,11 +152,9 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
     }
 
     // Fallback if no key or error
-    const fallbacks = activeSeason === 'summer' ? SUMMER_FALLBACKS : WINTER_FALLBACKS;
-    // Filter out items matching existing names just in case
-    const filtered = fallbacks.filter(f => !existingList.some((h: any) => h.title.toLowerCase() === f.title.toLowerCase()));
+    const filtered = FALLBACK_HOBBIES.filter(f => !existingList.some((h: any) => h.title.toLowerCase() === f.title.toLowerCase()));
     
-    return new Response(JSON.stringify(filtered.length >= 4 ? filtered : fallbacks), {
+    return new Response(JSON.stringify(filtered.length >= 4 ? filtered.slice(0, 4) : FALLBACK_HOBBIES.slice(0, 4)), {
       headers: { 'Content-Type': 'application/json' }
     });
 

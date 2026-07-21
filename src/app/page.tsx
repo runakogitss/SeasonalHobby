@@ -221,7 +221,7 @@ export default function Home() {
 
   const handleApplyMicroGoal = (hobbyTitle: string, newMicroGoal: string) => {
     const list = getHobbies();
-    const index = list.findIndex(h => h.title.toLowerCase() === hobbyTitle.toLowerCase() && h.season === season);
+    const index = list.findIndex(h => h.title.toLowerCase() === hobbyTitle.toLowerCase());
     
     if (index !== -1) {
       list[index] = {
@@ -232,44 +232,37 @@ export default function Home() {
       updateHobby(list[index]);
       setHobbies(getHobbies());
     } else {
-      showToast(`Hobby "${hobbyTitle}" not found in current season to apply micro-goal.`);
+      showToast(`Hobby "${hobbyTitle}" not found to apply micro-goal.`);
     }
   };
 
-  // Get active hobbies for the current season
-  const currentSeasonHobbies = hobbies.filter(h => h.season === season);
-  
   // Filtered hobbies list for Dashboard
-  const dashboardFilteredHobbies = currentSeasonHobbies.filter(h => {
+  const dashboardFilteredHobbies = hobbies.filter(h => {
     if (categoryFilter === 'all') return true;
     return h.category === categoryFilter;
   });
 
   // Extract unique categories for filter chips
-  const uniqueCategories = Array.from(new Set(currentSeasonHobbies.map(h => h.category)));
+  const uniqueCategories = Array.from(new Set(hobbies.map(h => h.category)));
 
   // Today's focus items (Max 2)
-  const todayFocusItems = currentSeasonHobbies.filter(h => h.is_daily_focus);
+  const todayFocusItems = hobbies.filter(h => h.is_daily_focus);
 
   // Dropdown list for adding focus items easily
-  const nonFocusHobbies = currentSeasonHobbies.filter(h => !h.is_daily_focus);
+  const nonFocusHobbies = hobbies.filter(h => !h.is_daily_focus);
 
-  // Greeting Message depending on Season
+  // Greeting Message
   const getGreeting = () => {
     const hour = new Date().getHours();
     let timeGreeting = "Good afternoon";
     if (hour < 12) timeGreeting = "Good morning";
     else if (hour > 17) timeGreeting = "Good evening";
 
-    return season === 'summer' 
-      ? `${timeGreeting}, ${userName}! ☀️` 
-      : `${timeGreeting}, ${userName}! ❄️`;
+    return `${timeGreeting}, ${userName}! ✨`;
   };
 
   const getGreetingSubtext = () => {
-    return season === 'summer'
-      ? "Summer is here. Keep the momentum going."
-      : "Winter has arrived. Cozy up and focus on what matters.";
+    return "Track your hobbies, complete micro-goals, and build progress daily.";
   };
 
   return (
@@ -373,7 +366,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-xs font-bold leading-none">{userName}</p>
-                  <span className="text-[10px] text-season-muted capitalize font-semibold">{isSandbox ? 'sandbox' : season} mode</span>
+                  <span className="text-[10px] text-season-muted capitalize font-semibold">{isSandbox ? 'sandbox' : 'active'} mode</span>
                 </div>
               </div>
             </div>
@@ -460,7 +453,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <h3 className="font-extrabold text-sm text-season-text flex items-center gap-2">
                     <ListPlus className="h-4.5 w-4.5 text-season-accent" />
-                    All {season} Hobbies
+                    All Hobbies
                   </h3>
                   
                   {/* Category Filter Chips and Add Button */}
@@ -537,31 +530,31 @@ export default function Home() {
           {activeTab === 'hobbies' && (
             <div className="space-y-8">
               <div>
-                <h2 className="text-xl font-extrabold text-season-text">Hobbies Backlog Registry</h2>
-                <p className="text-xs text-season-muted mt-1">Manage and view cards for the active season, as well as vaulted items in hibernation.</p>
+                <h2 className="text-xl font-extrabold text-season-text">Hobbies Registry</h2>
+                <p className="text-xs text-season-muted mt-1">Manage and view all your custom hobby planner cards.</p>
               </div>
 
-              {/* Active Hobbies Backlog */}
+              {/* Hobbies Backlog */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-season-border pb-2">
-                  <h3 className="font-bold text-xs text-season-text uppercase tracking-wider">Active Season Backlog</h3>
+                  <h3 className="font-bold text-xs text-season-text uppercase tracking-wider">All Hobbies</h3>
                   <button
                     onClick={() => {
                       setSelectedHobby(null);
                       setIsEditOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-season-accent text-white font-bold text-xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-season-accent text-white font-bold text-xs cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     New Card
                   </button>
                 </div>
 
-                {currentSeasonHobbies.length === 0 ? (
-                  <p className="text-xs text-season-muted italic">No active hobbies in backlog. Create one!</p>
+                {hobbies.length === 0 ? (
+                  <p className="text-xs text-season-muted italic">No hobbies in backlog. Create one!</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                    {currentSeasonHobbies.map((hobby) => (
+                    {hobbies.map((hobby) => (
                       <HobbyCard
                         key={hobby.id}
                         hobby={hobby}
@@ -575,30 +568,6 @@ export default function Home() {
                           setIsDetailOpen(true);
                         }}
                         onDelete={handleDeleteHobby}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Hibernate/Opposite Season Backlog */}
-              <div className="space-y-4 pt-6">
-                <div className="flex items-center justify-between border-b border-season-border pb-2">
-                  <h3 className="font-bold text-xs text-season-muted uppercase tracking-wider">Hibernating Backlog (Opposite Season)</h3>
-                </div>
-                
-                {hobbies.filter(h => h.season !== season).length === 0 ? (
-                  <p className="text-xs text-season-muted italic">No hibernating hobbies in registry.</p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 opacity-65 grayscale-30 select-none pointer-events-none">
-                    {hobbies.filter(h => h.season !== season).map((hobby) => (
-                      <HobbyCard
-                        key={hobby.id}
-                        hobby={hobby}
-                        onToggleFocus={() => {}}
-                        onEdit={() => {}}
-                        onClick={() => {}}
-                        onDelete={() => {}}
                       />
                     ))}
                   </div>
@@ -719,7 +688,7 @@ export default function Home() {
             {/* AIAssistant main panel */}
             <div className="flex-1 p-4 overflow-y-auto">
               <AIAssistant 
-                hobbies={currentSeasonHobbies} 
+                hobbies={hobbies} 
                 onApplyMicroGoal={handleApplyMicroGoal}
               />
             </div>

@@ -97,7 +97,7 @@ export default function StellaSuggestionsModal({
                 Stella Ideas back deck
               </h2>
               <p className="text-xs text-season-muted font-semibold mt-0.5">
-                AI suggested hobbies & categories to enrich your {season} days.
+                AI suggested hobbies & categories to enrich your days.
               </p>
             </div>
           </div>

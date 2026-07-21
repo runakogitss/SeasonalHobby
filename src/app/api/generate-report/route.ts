@@ -5,19 +5,17 @@ export const runtime = 'edge';
 export async function POST(req: NextRequest) {
   let hobbies: any[] = [];
   let logs: any[] = [];
-  let season = 'summer';
 
   try {
     const body = await req.json();
     hobbies = body.hobbies ?? [];
     logs = body.logs ?? [];
-    season = body.season ?? 'summer';
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     // Build a readable summary of hobbies for the prompt
     const hobbySummary = hobbies.map((h: any) => {
-      return `- "${h.title}" (${h.category}, ${h.season}) | Progress: ${h.progress}% | Daily Focus: ${h.is_daily_focus ? 'Yes' : 'No'} | Last brain dump: "${h.last_brain_dump || 'None'}" | Micro-goal: "${h.micro_goal || 'None'}"`;
+      return `- "${h.title}" (${h.category}) | Progress: ${h.progress}% | Daily Focus: ${h.is_daily_focus ? 'Yes' : 'No'} | Last brain dump: "${h.last_brain_dump || 'None'}" | Micro-goal: "${h.micro_goal || 'None'}"`;
     }).join('\n');
 
     const logSummary = logs.length > 0
@@ -27,7 +25,7 @@ export async function POST(req: NextRequest) {
       : 'No activity logs recorded yet.';
 
     const prompt = `You are Stella, a warm, encouraging, and practical personal hobby advisor. 
-The user is in the ${season} season and is tracking their hobbies. Generate a detailed but concise improvement report based on their hobby data and activity logs.
+Generate a detailed but concise improvement report based on their hobby data and activity logs.
 
 ## Their Hobby Planner Cards:
 ${hobbySummary || 'No hobbies added yet.'}
@@ -58,7 +56,7 @@ Keep the tone warm, specific, and personal. Reference actual hobby titles from t
     // If no API key, return a smart local fallback
     if (!apiKey) {
       return NextResponse.json({
-        report: generateLocalReport(hobbies, logs, season)
+        report: generateLocalReport(hobbies, logs)
       });
     }
 
@@ -92,12 +90,12 @@ Keep the tone warm, specific, and personal. Reference actual hobby titles from t
     console.error('[generate-report] Error:', err.message);
     // Fallback on any error
     return NextResponse.json({
-      report: generateLocalReport(hobbies, logs, season)
+      report: generateLocalReport(hobbies, logs)
     });
   }
 }
 
-function generateLocalReport(hobbies: any[], logs: any[], season: string): string {
+function generateLocalReport(hobbies: any[], logs: any[]): string {
   const total = hobbies.length;
   const avgProgress = total > 0
     ? Math.round(hobbies.reduce((s: number, h: any) => s + (h.progress || 0), 0) / total)
@@ -115,7 +113,7 @@ function generateLocalReport(hobbies: any[], logs: any[], season: string): strin
     : 'none';
 
   return `**🌟 Overall Assessment**
-You're tracking ${total} hobby planner card${total !== 1 ? 's' : ''} this ${season} with an average progress of ${avgProgress}%. ${focusCount > 0 ? `You have ${focusCount} hobby set as today's focus, which is a great sign of commitment.` : 'Try setting a daily focus hobby to keep your momentum strong!'}
+You're tracking ${total} hobby planner card${total !== 1 ? 's' : ''} with an average progress of ${avgProgress}%. ${focusCount > 0 ? `You have ${focusCount} hobby set as today's focus, which is a great sign of commitment.` : 'Try setting a daily focus hobby to keep your momentum strong!'}
 
 **📈 Progress Highlights**
 ${highProgress.length > 0

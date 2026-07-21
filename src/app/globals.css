@@ -1,37 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  /* Default/Summer theme variables */
-  --season-bg: #fffbf4;
+  /* Unified modern premium theme variables */
+  --season-bg: #faf9f5;
   --season-card: #ffffff;
-  --season-accent: #f39c12;
-  --season-text: #2c3e50;
-  --season-muted: #64748b;
-  --season-border: #f1f5f9;
-  --season-accent-light: #fef9c3;
-  --season-gradient: linear-gradient(135deg, #fffcf6 0%, #fef3c7 100%);
-}
-
-.theme-summer {
-  --season-bg: #fffbf4;
-  --season-card: #ffffff;
-  --season-accent: #f39c12;
-  --season-text: #2c3e50;
-  --season-muted: #64748b;
-  --season-border: #f3e8ff; /* soft theme border */
-  --season-accent-light: #fef9c3;
-  --season-gradient: linear-gradient(135deg, #fffcf6 0%, #fef3c7 100%);
-}
-
-.theme-winter {
-  --season-bg: #f4f8fb;
-  --season-card: #ffffff;
-  --season-accent: #3498db;
-  --season-text: #1e293b;
-  --season-muted: #64748b;
-  --season-border: #e2e8f0;
-  --season-accent-light: #e0f2fe;
-  --season-gradient: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  --season-accent: #7c3aed;
+  --season-text: #1f2937;
+  --season-muted: #6b7280;
+  --season-border: #f3f4f6;
+  --season-accent-light: #f5f3ff;
+  --season-gradient: linear-gradient(135deg, #fdfcfa 0%, #faf6f0 100%);
 }
 
 @theme {
@@ -60,12 +38,6 @@ body {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.4);
-}
-
-.theme-winter .glass-panel {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Transitions for cards and interactive components */

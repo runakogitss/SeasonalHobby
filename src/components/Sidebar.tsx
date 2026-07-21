@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useSeason } from '@/context/SeasonContext';
 import { 
   LayoutDashboard, 
   Layers, 
@@ -9,8 +8,7 @@ import {
   BookOpen, 
   BarChart3, 
   Settings, 
-  Sun, 
-  Snowflake,
+  Sparkles,
   Menu,
   X
 } from 'lucide-react';
@@ -23,8 +21,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, isOpenMobile, setIsOpenMobile }: SidebarProps) {
-  const { season, setSeason } = useSeason();
-
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'hobbies', label: 'All Hobbies', icon: Layers },
@@ -54,18 +50,12 @@ export default function Sidebar({ activeTab, setActiveTab, isOpenMobile, setIsOp
         {/* Header Branding */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl transition-season-all ${
-              season === 'summer' ? 'bg-amber-100 text-amber-600' : 'bg-sky-100 text-sky-600'
-            }`}>
-              {season === 'summer' ? (
-                <Sun className="h-6 w-6 animate-spin-slow" />
-              ) : (
-                <Snowflake className="h-6 w-6 animate-pulse" />
-              )}
+            <div className="p-2 rounded-xl bg-season-accent/15 text-season-accent">
+              <Sparkles className="h-6 w-6" />
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight tracking-tight">Seasonal</h1>
-              <p className="text-xs text-season-muted font-medium">Hobby Hub</p>
+              <p className="text-xs text-season-muted font-medium">Hobby</p>
             </div>
           </div>
           
@@ -110,46 +100,6 @@ export default function Sidebar({ activeTab, setActiveTab, isOpenMobile, setIsOp
             );
           })}
         </nav>
-
-        {/* Season Switcher Section */}
-        <div className="mt-auto border-t border-season-border pt-6">
-          <p className="text-[11px] font-bold tracking-wider text-season-muted uppercase mb-3 px-2">
-            Season Switch
-          </p>
-          <div className="grid grid-cols-2 gap-2 bg-season-bg/60 p-1.5 rounded-xl border border-season-border">
-            {/* Summer Button */}
-            <button
-              onClick={() => setSeason('summer')}
-              className={`
-                flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold
-                transition-all duration-300
-                ${season === 'summer'
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                  : 'text-season-muted hover:text-season-text'
-                }
-              `}
-            >
-              <Sun className="h-3.5 w-3.5" />
-              Summer
-            </button>
-
-            {/* Winter Button */}
-            <button
-              onClick={() => setSeason('winter')}
-              className={`
-                flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold
-                transition-all duration-300
-                ${season === 'winter'
-                  ? 'bg-sky-500 text-white shadow-md shadow-sky-500/20'
-                  : 'text-season-muted hover:text-season-text'
-                }
-              `}
-            >
-              <Snowflake className="h-3.5 w-3.5" />
-              Winter
-            </button>
-          </div>
-        </div>
       </aside>
 
       {/* Bottom Nav Bar for Mobile Devices */}

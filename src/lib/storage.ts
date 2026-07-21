@@ -199,11 +199,10 @@ export function toggleDailyFocus(hobbyId: string): Hobby[] {
   if (index === -1) return hobbies;
 
   const target = hobbies[index];
-  const targetSeason = target.season;
 
-  // If turning ON daily focus, enforce the rule: Max 2 active hobbies per season
+  // If turning ON daily focus, enforce the rule: Max 2 active hobbies total
   if (!target.is_daily_focus) {
-    const activeCount = hobbies.filter(h => h.season === targetSeason && h.is_daily_focus).length;
+    const activeCount = hobbies.filter(h => h.is_daily_focus).length;
     if (activeCount >= 2) {
       throw new Error('Decision paralysis threshold reached. Maximum 2 items allowed.');
     }
@@ -224,7 +223,7 @@ export function addHobby(hobby: Omit<Hobby, 'id' | 'created_at' | 'updated_at'>)
   
   // Enforce daily focus limit on addition if selected
   if (hobby.is_daily_focus) {
-    const activeCount = hobbies.filter(h => h.season === hobby.season && h.is_daily_focus).length;
+    const activeCount = hobbies.filter(h => h.is_daily_focus).length;
     if (activeCount >= 2) {
       throw new Error('Decision paralysis threshold reached. Maximum 2 items allowed.');
     }
@@ -249,7 +248,7 @@ export function updateHobby(hobby: Hobby): Hobby[] {
 
   // Enforce daily focus limit if switching is_daily_focus to true
   if (hobby.is_daily_focus && !hobbies[index].is_daily_focus) {
-    const activeCount = hobbies.filter(h => h.season === hobby.season && h.is_daily_focus).length;
+    const activeCount = hobbies.filter(h => h.is_daily_focus).length;
     if (activeCount >= 2) {
       throw new Error('Decision paralysis threshold reached. Maximum 2 items allowed.');
     }
