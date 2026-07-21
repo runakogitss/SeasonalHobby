@@ -132,7 +132,7 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
         {/* Modal Header */}
         <div className="flex items-center justify-between mb-6 pb-2 border-b border-season-border">
           <h2 className="text-xl font-bold text-season-text">
-            {hobby ? 'Edit Hobby Card' : 'Add Hobby Card'}
+            {hobby ? 'Edit Hobby Planner Card' : 'Add Hobby Planner Card'}
           </h2>
           <button 
             onClick={onClose}
@@ -345,7 +345,7 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
               type="submit"
               className="px-5 py-2.5 rounded-xl bg-season-accent text-white hover:opacity-90 font-bold text-xs shadow-md shadow-season-accent/20 transition-all"
             >
-              {hobby ? 'Save Changes' : 'Create Card'}
+              {hobby ? 'Save Changes' : 'Create Planner Card'}
             </button>
           </div>
         </form>

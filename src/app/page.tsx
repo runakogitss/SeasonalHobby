@@ -442,7 +442,7 @@ export default function Home() {
                       className="flex w-full items-center justify-center gap-2 p-4 rounded-2xl border border-dashed border-season-border bg-season-bg/40 text-xs font-bold text-season-muted hover:border-season-accent hover:text-season-accent transition-all cursor-pointer"
                     >
                       <Plus className="h-4 w-4" />
-                      Add Hobby
+                      Add Hobby Planner Card
                     </button>
                   )}
 
@@ -471,7 +471,7 @@ export default function Home() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-season-accent/30 text-season-accent hover:bg-season-accent/10 font-bold text-xs cursor-pointer"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Suggest Hobbies
+                      Stella's Suggestion
                     </button>
 
                     {/* Add Card Button */}
@@ -483,7 +483,7 @@ export default function Home() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-season-accent text-white hover:opacity-90 font-bold text-xs shadow-md shadow-season-accent/15 cursor-pointer"
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      Add Hobby
+                      Add Hobby Planner Card
                     </button>
 
                   </div>
@@ -504,7 +504,7 @@ export default function Home() {
                       }}
                       className="px-4 py-2 rounded-xl bg-season-accent text-white font-bold text-xs"
                     >
-                      Create Card
+                      Create Planner Card
                     </button>
                   </div>
                 ) : (
