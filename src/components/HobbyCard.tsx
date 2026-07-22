@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Hobby } from '@/lib/storage';
 import { Star, MoreVertical, Edit2, Trash2, Eye, Clock } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface HobbyCardProps {
   hobby: Hobby;
@@ -15,6 +16,7 @@ interface HobbyCardProps {
 
 export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDelete }: HobbyCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [relativeTime, setRelativeTime] = useState('Updated recently');
 
@@ -198,9 +200,7 @@ export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDel
                 <hr className="border-season-border my-1" />
                 <button
                   onClick={() => {
-                    if (confirm(`Delete hobby "${hobby.title}"?`)) {
-                      onDelete(hobby.id);
-                    }
+                    setIsDeleteModalOpen(true);
                     setShowMenu(false);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 text-left"
@@ -258,6 +258,15 @@ export default function HobbyCard({ hobby, onToggleFocus, onEdit, onClick, onDel
           </span>
         </div>
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        hobbyTitle={hobby.title}
+        category={hobby.category}
+        onConfirm={() => onDelete(hobby.id)}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
     </div>
   );
 }

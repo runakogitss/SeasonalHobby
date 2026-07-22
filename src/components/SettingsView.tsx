@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Database, ShieldAlert, Key, User, Trash2 } from 'lucide-react';
 import { isSandboxModeActive } from '@/lib/storage';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface SettingsViewProps {
   onResetData: () => void;
@@ -15,6 +16,8 @@ export default function SettingsView({ onResetData }: SettingsViewProps) {
   const [openRouterKey, setOpenRouterKey] = useState('');
   const [showKeys, setShowKeys] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isClearSandboxConfirmOpen, setIsClearSandboxConfirmOpen] = useState(false);
 
   // Load local settings overrides
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -46,10 +49,7 @@ export default function SettingsView({ onResetData }: SettingsViewProps) {
   };
 
   const handleReset = () => {
-    if (confirm('Are you sure you want to restore the database to its default hobbies and logs? This will erase all your custom entries!')) {
-      onResetData();
-      alert('Local storage has been reset to defaults.');
-    }
+    setIsResetConfirmOpen(true);
   };
 
   return (
@@ -217,13 +217,7 @@ export default function SettingsView({ onResetData }: SettingsViewProps) {
           {isSandboxModeActive() && (
             <button
               type="button"
-              onClick={() => {
-                if (confirm('Are you sure you want to completely empty the Sandbox database?')) {
-                  localStorage.setItem('seasonal-hobbies-sandbox', JSON.stringify([]));
-                  localStorage.setItem('seasonal-activity-logs-sandbox', JSON.stringify([]));
-                  window.location.reload();
-                }
-              }}
+              onClick={() => setIsClearSandboxConfirmOpen(true)}
               className="px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               Clear Sandbox Slate
@@ -249,6 +243,29 @@ export default function SettingsView({ onResetData }: SettingsViewProps) {
           Reset Database to Defaults
         </button>
       </div>
+
+      {/* Custom Modals */}
+      <ConfirmDeleteModal
+        isOpen={isResetConfirmOpen}
+        title="Reset Database to Defaults"
+        message="Are you sure you want to restore the database to its default hobbies and logs? This will erase all your custom entries!"
+        confirmLabel="Reset Everything"
+        onConfirm={() => onResetData()}
+        onClose={() => setIsResetConfirmOpen(false)}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={isClearSandboxConfirmOpen}
+        title="Empty Sandbox Slate"
+        message="Are you sure you want to completely empty the Sandbox database? All sandbox cards will be removed."
+        confirmLabel="Clear Sandbox"
+        onConfirm={() => {
+          localStorage.setItem('seasonal-hobbies-sandbox', JSON.stringify([]));
+          localStorage.setItem('seasonal-activity-logs-sandbox', JSON.stringify([]));
+          window.location.reload();
+        }}
+        onClose={() => setIsClearSandboxConfirmOpen(false)}
+      />
     </div>
   );
 }

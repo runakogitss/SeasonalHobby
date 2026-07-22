@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Hobby } from '@/lib/storage';
 import { X, Check, Sparkles, Loader2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
-
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface HobbyFormData {
   id?: string;
@@ -43,6 +43,7 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
   const [isDailyFocus, setIsDailyFocus] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const getIconComponent = (iconName: string) => {
     const normalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
@@ -322,12 +323,8 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
             {hobby && onDelete && (
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${hobby.title}?`)) {
-                    onDelete(hobby.id);
-                  }
-                }}
-                className="px-4 py-2.5 rounded-xl border border-red-200 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+                onClick={() => setIsDeleteConfirmOpen(true)}
+                className="px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
               >
                 Delete
               </button>
@@ -349,6 +346,20 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
             </button>
           </div>
         </form>
+
+        {/* Custom Delete Confirmation Modal */}
+        {hobby && onDelete && (
+          <ConfirmDeleteModal
+            isOpen={isDeleteConfirmOpen}
+            hobbyTitle={hobby.title}
+            category={hobby.category}
+            onConfirm={() => {
+              onDelete(hobby.id);
+              onClose();
+            }}
+            onClose={() => setIsDeleteConfirmOpen(false)}
+          />
+        )}
 
       </div>
     </div>

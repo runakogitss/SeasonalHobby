@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityLog, groupLogsByDay } from '@/lib/storage';
 import { Calendar, Trash2, CheckCircle2, History, MessageSquare } from 'lucide-react';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 interface JournalViewProps {
   logs: ActivityLog[];
@@ -13,10 +14,10 @@ export default function JournalView({ logs, onDeleteLog }: JournalViewProps) {
   const groupedLogs = groupLogsByDay(logs);
   const days = Object.keys(groupedLogs);
 
+  const [logToDelete, setLogToDelete] = useState<{ id: string; title: string } | null>(null);
+
   const handleDelete = (id: string, title: string) => {
-    if (confirm(`Remove completion log for "${title}"?`)) {
-      onDeleteLog(id);
-    }
+    setLogToDelete({ id, title });
   };
 
   return (
@@ -110,6 +111,17 @@ export default function JournalView({ logs, onDeleteLog }: JournalViewProps) {
           ))}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={Boolean(logToDelete)}
+        title="Delete Activity Log"
+        itemName={logToDelete?.title}
+        message="Are you sure you want to remove this completion entry from your journal?"
+        onConfirm={() => {
+          if (logToDelete) onDeleteLog(logToDelete.id);
+        }}
+        onClose={() => setLogToDelete(null)}
+      />
     </div>
   );
 }
