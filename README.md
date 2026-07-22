@@ -29,6 +29,33 @@
 
 ---
 
+## App Architecture
+src/
+├── app/
+│   ├── page.tsx          ← Main SPA page (all tabs rendered here)
+│   ├── layout.tsx        ← Root layout with SeasonProvider wrapper
+│   ├── globals.css       ← CSS variables + Tailwind v4 theming
+│   └── api/
+│       ├── chat/         ← Stella chat (SSE streaming, OpenRouter or offline simulator)
+│       ├── suggest-hobbies/    ← AI hobby suggestions
+│       ├── generate-report/    ← AI analytics report
+│       └── generate-hobby-meta/← Auto-suggest icon/color for new hobby
+├── components/
+│   ├── Sidebar.tsx       ← Desktop sidebar + mobile bottom nav
+│   ├── HobbyCard.tsx     ← Card displaying hobby info, focus toggle, actions
+│   ├── HobbyDetailModal.tsx  ← Inspect + "Mark as Done" flow
+│   ├── EditHobbyModal.tsx    ← Create/Edit hobby form (with Stella AI suggest)
+│   ├── StellaSuggestionsModal.tsx ← Stella's seasonal hobby recommendations
+│   ├── AIAssistant.tsx   ← Stella chat panel (SSE streaming UI)
+│   ├── JournalView.tsx   ← Timeline ledger of completed micro-goals
+│   ├── StatsView.tsx     ← Analytics + Stella's Improvement Report
+│   ├── SettingsView.tsx  ← Config: name, API keys, sandbox toggle, danger zone
+│   └── ConfirmDeleteModal.tsx ← Reusable confirmation dialog
+├── context/
+│   └── SeasonContext.tsx  ← Season (summer/winter) theme state + localStorage persistence
+└── lib/
+    └── storage.ts        ← All CRUD logic on localStorage (hobbies + activity logs)
+
 ## 🛠️ Tech Stack
 
 * **Frontend:** Next.js
