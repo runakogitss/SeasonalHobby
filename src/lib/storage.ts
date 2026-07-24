@@ -2,7 +2,6 @@ export interface Hobby {
   id: string;
   title: string;
   category: string;
-  season: 'summer' | 'winter';
   icon: string;
   color_theme: string;
   last_brain_dump: string;
@@ -28,7 +27,6 @@ const DEFAULT_SUMMER_HOBBIES: Hobby[] = [
     id: 's1',
     title: 'Gaming',
     category: 'gaming',
-    season: 'summer',
     icon: 'gamepad',
     color_theme: 'purple',
     last_brain_dump: 'Exploring the ocean depths and running my sushi restaurant.',
@@ -43,7 +41,6 @@ const DEFAULT_SUMMER_HOBBIES: Hobby[] = [
     id: 's2',
     title: 'Music',
     category: 'music',
-    season: 'summer',
     icon: 'music',
     color_theme: 'green',
     last_brain_dump: 'Practicing fingerpicking pattern in C major.',
@@ -58,7 +55,6 @@ const DEFAULT_SUMMER_HOBBIES: Hobby[] = [
     id: 's3',
     title: 'Reading',
     category: 'reading',
-    season: 'summer',
     icon: 'book',
     color_theme: 'orange',
     last_brain_dump: 'Reading Chapter 7: Riddles in the Dark.',
@@ -73,7 +69,6 @@ const DEFAULT_SUMMER_HOBBIES: Hobby[] = [
     id: 's4',
     title: 'Language',
     category: 'language',
-    season: 'summer',
     icon: 'languages',
     color_theme: 'blue',
     last_brain_dump: 'Learned 〜ます form and 15 new vocabulary words.',
@@ -91,7 +86,6 @@ const DEFAULT_WINTER_HOBBIES: Hobby[] = [
     id: 'w1',
     title: 'Rust Coding',
     category: 'coding',
-    season: 'winter',
     icon: 'code',
     color_theme: 'blue',
     last_brain_dump: 'Finished understanding lifetimes and ownership principles.',
@@ -106,7 +100,6 @@ const DEFAULT_WINTER_HOBBIES: Hobby[] = [
     id: 'w2',
     title: 'Skiing Prep',
     category: 'sports',
-    season: 'winter',
     icon: 'activity',
     color_theme: 'green',
     last_brain_dump: 'Completed core strength exercises and cardio routines.',
@@ -121,7 +114,6 @@ const DEFAULT_WINTER_HOBBIES: Hobby[] = [
     id: 'w3',
     title: 'Baking Bread',
     category: 'cooking',
-    season: 'winter',
     icon: 'utensils',
     color_theme: 'orange',
     last_brain_dump: 'Baked a sourdough boule, crust was good but crumb was too dense.',

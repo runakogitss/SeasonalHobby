@@ -128,7 +128,6 @@ export default function Home() {
       notes: suggested.notes,
       is_daily_focus: false,
       progress: 0,
-      season: season,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
@@ -141,7 +140,6 @@ export default function Home() {
       addHobby({
         title: suggested.title,
         category: suggested.category,
-        season: season,
         icon: suggested.icon,
         color_theme: suggested.color_theme,
         last_brain_dump: suggested.last_brain_dump,
@@ -169,7 +167,6 @@ export default function Home() {
         const newHobbyData = {
           title: hobbyData.title,
           category: hobbyData.category,
-          season: season, // Attach current season automatically
           icon: hobbyData.icon,
           color_theme: hobbyData.color_theme,
           last_brain_dump: hobbyData.last_brain_dump,
@@ -688,7 +685,8 @@ export default function Home() {
             {/* AIAssistant main panel */}
             <div className="flex-1 p-4 overflow-y-auto">
               <AIAssistant 
-                hobbies={hobbies} 
+                hobbies={hobbies}
+                logs={logs}
                 onApplyMicroGoal={handleApplyMicroGoal}
               />
             </div>
@@ -720,7 +718,6 @@ export default function Home() {
       {/* Hobby edit/create card modal */}
       <EditHobbyModal
         hobby={selectedHobby}
-        season={season}
         isOpen={isEditOpen}
         onClose={() => {
           setIsEditOpen(false);

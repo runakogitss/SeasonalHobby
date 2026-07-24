@@ -5,26 +5,41 @@ export const runtime = 'edge'; // Edge runtime for fast streaming response
 
 export async function POST(req: NextRequest) {
   try {
-    const { userMessage, hobbiesContext } = await req.json();
+    const { userMessage, hobbiesContext, logsContext } = await req.json();
 
-    // 1. Format the context matrix as specified in the Technical Spec
+    // 1. Format the context matrix — includes daily focus, progress, brain dump, and micro-goal
     const hobbies = hobbiesContext || [];
+    const logs = logsContext || [];
+
     const contextMatrix = hobbies
-      .map((h: any) => `- [${h.category}] ${h.title}: Last Active State: "${h.last_brain_dump}". Micro-Goal: "${h.micro_goal}".`)
+      .map((h: any) => {
+        const focusTag = h.is_daily_focus ? ' [DAILY FOCUS]' : '';
+        return `- [${h.category}]${focusTag} ${h.title}: Progress: ${h.progress ?? 0}%. Last Active State: "${h.last_brain_dump}". Micro-Goal: "${h.micro_goal}".`;
+      })
       .join('\n');
 
-    const systemInstruction = `You are Stella, a warm and enthusiastic hobby planning advisor for a personal seasonal hobby dashboard app. Your personality is encouraging, insightful, and concise — like a knowledgeable friend who helps people stay consistent with what they love doing.
+    // 2. Build recent journal/log summary (last 5 entries)
+    const recentLogs = logs.slice(0, 5);
+    const logSummary = recentLogs.length > 0
+      ? recentLogs.map((l: any) => `- Completed "${l.micro_goal_completed}" for ${l.hobby_title} on ${l.completed_at}`).join('\n')
+      : 'No activity logs yet.';
+
+    const systemInstruction = `You are Stella, a warm and enthusiastic hobby planning advisor for a personal hobby dashboard app called Seasonal Hobby. Your personality is encouraging, insightful, and concise — like a knowledgeable friend who helps people stay consistent with what they love doing.
 
 Your role:
 - Help the user reflect on their hobby progress and mental state
 - Break down overwhelming tasks into highly compressed 5-minute low-friction micro-goals
-- Suggest what to focus on next based on their last brain dump and current micro-goal
+- Suggest what to focus on next based on their daily focus, last brain dump, progress, and activity history
+- Reference specific hobby names, progress percentages, and recent completions when relevant
 - Keep responses short, actionable, and uplifting
 
-Current context — the user's active hobbies this season:
-${contextMatrix}
+User's Hobby Dashboard:
+${contextMatrix || 'No hobbies added yet.'}
 
-Always respond as Stella. Never refer to yourself as an AI model or assistant. Be conversational, caring, and practical.`;
+Recent Activity Journal (last 5 sessions):
+${logSummary}
+
+Always respond as Stella. Never refer to yourself as an AI model or assistant. Be conversational, caring, and practical. Use the data above to give personalized, specific advice.`;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
@@ -69,89 +84,66 @@ Always respond as Stella. Never refer to yourself as an AI model or assistant. B
       });
     }
 
-    // 3. Fallback: Simulated streaming response for offline/localStorage testing
+    // 3. Fallback: Data-driven simulated streaming response for offline/localStorage testing
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // We will stream reasoning blocks first, then the content blocks
-        const targetHobby = hobbies.find((h: any) => 
-          userMessage.toLowerCase().includes(h.title.toLowerCase()) || 
+        // Find the most relevant hobby by matching the user's query, else pick the daily focus, else first hobby
+        const targetHobby = hobbies.find((h: any) =>
+          userMessage.toLowerCase().includes(h.title.toLowerCase()) ||
           userMessage.toLowerCase().includes(h.category.toLowerCase())
-        ) || hobbies[0] || { title: 'hobbies', last_brain_dump: 'none', category: 'general' };
+        ) || hobbies.find((h: any) => h.is_daily_focus) || hobbies[0] || { title: 'your hobbies', last_brain_dump: 'none', micro_goal: 'Define your first micro-goal', category: 'general', progress: 0 };
 
-        const reasoningChunks = [
+        const lastLog = logs[0];
+        const lastLogLine = lastLog
+          ? `Last completed: "${lastLog.micro_goal_completed}" for ${lastLog.hobby_title} on ${lastLog.completed_at}.`
+          : 'No activity logged yet.';
+
+        const focusHobbies = hobbies.filter((h: any) => h.is_daily_focus);
+        const focusNames = focusHobbies.length > 0
+          ? focusHobbies.map((h: any) => h.title).join(' and ')
+          : 'none set';
+
+        const finalReasoning = [
           `[Reasoning] Analyzing query: "${userMessage}"\n`,
-          `[Reasoning] Context loaded: target is "${targetHobby.title}" under "${targetHobby.category}".\n`,
-          `[Reasoning] Last active dump: "${targetHobby.last_brain_dump}"\n`,
-          `[Reasoning] Current goal: "${targetHobby.micro_goal || 'None'}"\n`,
-          `[Reasoning] Goal formulation: breaking down next steps into low-friction, 5-minute activities.\n`,
-          `[Reasoning] Formulating action items for ${targetHobby.title} to ease cognitive load and prevent decision paralysis...\n\n`
+          `[Reasoning] Hobby registry: ${hobbies.length} hobbies found.\n`,
+          `[Reasoning] Daily focus hobbies: ${focusNames}.\n`,
+          `[Reasoning] Target hobby selected: "${targetHobby.title}" (${targetHobby.category}) at ${targetHobby.progress ?? 0}% progress.\n`,
+          `[Reasoning] Last brain dump: "${targetHobby.last_brain_dump}"\n`,
+          `[Reasoning] Current micro-goal: "${targetHobby.micro_goal || 'None set'}"\n`,
+          `[Reasoning] Recent journal: ${lastLogLine}\n`,
+          `[Reasoning] Formulating low-friction, actionable next steps...\n\n`
         ];
 
-        const contentChunks = [
-          `Based on your last brain dump, here are some actionable suggestions to continue your **${targetHobby.title}** progression smoothly:\n\n`,
-          `* 🎯 **Step 1: Check progress state** (approx. 2 mins)\n  Take a look at your current settings or gear. For example: *"${targetHobby.notes || 'Review your notes'}"*.\n\n`,
-          `* ⚡ **Step 2: Low-friction activation** (approx. 5 mins)\n  Set up your workspace and perform one tiny task. If it's a game, load the save file; if reading, read just two pages; if music, strum a single chord scale.\n\n`,
-          `* 🛠️ **Step 3: Update your micro-goal** (approx. 3 mins)\n  Instead of planning a long session, focus on your immediate next action: *"${targetHobby.micro_goal || 'Define next tiny goal'}"*.\n\n`,
-          `Would you like me to set one of these as your active micro-goal for today? 😊`
+        const finalContent = [
+          `Based on your data, here's my advice for **${targetHobby.title}** (currently at ${targetHobby.progress ?? 0}% progress):\n\n`,
+          `* 🎯 **Your current micro-goal**: "${targetHobby.micro_goal || 'No goal set yet — let\'s define one!'}"\n  Try completing this in a single 5-minute session today.\n\n`,
+          `* 🧠 **Last brain dump recap**: "${targetHobby.last_brain_dump}"\n  Pick up exactly where you left off to avoid re-orientation time.\n\n`,
+          lastLog ? `* ✅ **Great recent win**: You completed "${lastLog.micro_goal_completed}" on ${lastLog.completed_at}. Keep building on that momentum!\n\n` : `* 📝 **Log your first session**: Once you complete a micro-goal, log it to track your momentum!\n\n`,
+          focusHobbies.length > 0
+            ? `Your daily focus is set to **${focusNames}** — stay locked in and resist context-switching. 💪\n\n`
+            : `💡 **Tip**: Mark a hobby as your Daily Focus to reduce decision paralysis each morning.\n\n`,
+          `Would you like me to help you refine your micro-goal or plan your next session? 😊`
         ];
-
-        // Custom simulated content if they ask for Dave the diver specifically (as in the mockup)
-        const isDaveTheDiver = userMessage.toLowerCase().includes('dave the diver') || userMessage.toLowerCase().includes('dave');
-        
-        let finalReasoning = reasoningChunks;
-        let finalContent = contentChunks;
-
-        if (isDaveTheDiver) {
-          finalReasoning = [
-            `[Reasoning] Query detected: "Dave the Diver"\n`,
-            `[Reasoning] Loading hobby context: Title="Gaming", Category="gaming"\n`,
-            `[Reasoning] Retrieving last brain dump: "Exploring the ocean depths and running my sushi restaurant."\n`,
-            `[Reasoning] Goal: "Catch more rare fish for the Bestiary."\n`,
-            `[Reasoning] Synthesizing next steps. User is feeling friction starting. Recommend tiny actions:\n`,
-            `[Reasoning] 1. Catching shallow fish first (low risk).\n`,
-            `[Reasoning] 2. Checking Bancho Sushi inventory (easy management).\n`,
-            `[Reasoning] 3. Upgrading equipment to unlock progression.\n`,
-            `[Reasoning] Finalizing response options...\n\n`
-          ];
-          finalContent = [
-            `Based on your last brain dump, here are some suggestions to continue smoothly:\n\n`,
-            `* 🐟 **Catch more rare fish to complete the Bestiary** (Focus on shallow-reef areas to avoid oxygen depletion).\n`,
-            `* 🔱 **Upgrade your harpoon for deeper exploration** (Check the weapon shop menu; you might need just a small amount of gold).\n`,
-            `* 🍣 **Hire additional staff to improve restaurant efficiency** (Review the applicant list in the staff screen before opening).\n`,
-            `* 🌊 **Explore the Blue Hole for new story content** (Take a quick 5-minute dive to check the current depth threshold).\n\n`,
-            `Would you like me to turn one of these into a micro-goal for today? 😊`
-          ];
-        }
 
         // Stream reasoning chunks
         for (const chunk of finalReasoning) {
-          // SSE format for reasoning content
           const sseData = `data: ${JSON.stringify({
-            choices: [{
-              delta: {
-                reasoning_content: chunk
-              }
-            }]
+            choices: [{ delta: { reasoning_content: chunk } }]
           })}\n\n`;
           controller.enqueue(encoder.encode(sseData));
-          await new Promise((resolve) => setTimeout(resolve, 80)); // Simulate typing speed
+          await new Promise((resolve) => setTimeout(resolve, 80));
         }
 
         // Stream content chunks
         for (const chunk of finalContent) {
           const sseData = `data: ${JSON.stringify({
-            choices: [{
-              delta: {
-                content: chunk
-              }
-            }]
+            choices: [{ delta: { content: chunk } }]
           })}\n\n`;
           controller.enqueue(encoder.encode(sseData));
           await new Promise((resolve) => setTimeout(resolve, 150));
         }
 
-        // Send closing chunk
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       }

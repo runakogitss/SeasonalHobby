@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Hobby } from '@/lib/storage';
+import { Hobby, ActivityLog } from '@/lib/storage';
 import { Bot, Send, Sparkles, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 
 interface Message {
@@ -14,10 +14,11 @@ interface Message {
 
 interface AIAssistantProps {
   hobbies: Hobby[];
+  logs: ActivityLog[];
   onApplyMicroGoal?: (hobbyTitle: string, microGoal: string) => void;
 }
 
-export default function AIAssistant({ hobbies, onApplyMicroGoal }: AIAssistantProps) {
+export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -65,7 +66,8 @@ export default function AIAssistant({ hobbies, onApplyMicroGoal }: AIAssistantPr
         },
         body: JSON.stringify({
           userMessage: text,
-          hobbiesContext: hobbies
+          hobbiesContext: hobbies,
+          logsContext: logs
         })
       });
 
@@ -163,54 +165,46 @@ export default function AIAssistant({ hobbies, onApplyMicroGoal }: AIAssistantPr
   // Helper to extract micro-goal from AI output text for the "Apply" feature
   const handleApplyClick = (text: string) => {
     if (!onApplyMicroGoal) return;
-    
-    // Simple heuristic parser for simulated or standard formatting
-    // Try to find a line matching: **HobbyName** and active suggestion
-    // For Dave the Diver mockup, we look for key terms: Gaming, Music, Reading etc.
-    let targetHobby = '';
-    let suggestedGoal = '';
 
+    // Match the text against actual hobby titles from the user's real hobby list
     const lowerText = text.toLowerCase();
-    
-    if (lowerText.includes('gaming') || lowerText.includes('diver') || lowerText.includes('fish')) {
-      targetHobby = 'Gaming';
-      if (lowerText.includes('catch more rare fish')) {
-        suggestedGoal = 'Catch more rare fish for the Bestiary.';
-      } else if (lowerText.includes('upgrade your harpoon')) {
-        suggestedGoal = 'Upgrade your harpoon for deeper exploration.';
-      } else if (lowerText.includes('hire additional staff')) {
-        suggestedGoal = 'Hire additional staff to improve restaurant efficiency.';
-      } else {
-        suggestedGoal = 'Catch more rare fish to complete the Bestiary.';
-      }
-    } else if (lowerText.includes('music') || lowerText.includes('chord') || lowerText.includes('guitar')) {
-      targetHobby = 'Music';
-      suggestedGoal = 'Practice fingerpicking pattern for 10 minutes.';
-    } else if (lowerText.includes('reading') || lowerText.includes('read') || lowerText.includes('chapter')) {
-      targetHobby = 'Reading';
-      suggestedGoal = 'Read 2 pages of Chapter 8 today.';
-    } else if (lowerText.includes('language') || lowerText.includes('vocabulary') || lowerText.includes('word')) {
-      targetHobby = 'Language';
-      suggestedGoal = 'Review 10 vocabulary words.';
-    }
+    const matchedHobby = hobbies.find(h =>
+      lowerText.includes(h.title.toLowerCase()) ||
+      lowerText.includes(h.category.toLowerCase())
+    ) || hobbies.find(h => h.is_daily_focus) || hobbies[0];
 
-    if (targetHobby) {
-      onApplyMicroGoal(targetHobby, suggestedGoal);
-      alert(`Applied suggestion to "${targetHobby}":\n"${suggestedGoal}"`);
-    } else {
-      // Find first hobby matching current active list
-      const firstActive = hobbies[0];
-      if (firstActive) {
-        onApplyMicroGoal(firstActive.title, "Complete the AI suggested step.");
-        alert(`Applied generic suggestion to "${firstActive.title}".`);
-      }
+    if (matchedHobby) {
+      // Try to extract a micro-goal sentence from the AI response
+      const goalMatch = text.match(/["\u201c]([^"\u201d]{10,})["\u201d]/); // quoted strings
+      const extractedGoal = goalMatch ? goalMatch[1] : matchedHobby.micro_goal || 'Complete the AI suggested step.';
+      onApplyMicroGoal(matchedHobby.title, extractedGoal);
+      alert(`Applied suggestion to "${matchedHobby.title}":\n"${extractedGoal}"`);
     }
   };
 
+  // Build dynamic quick-suggestions based on user's real data
+  const dailyFocusHobbies = hobbies.filter(h => h.is_daily_focus);
+  const firstHobby = dailyFocusHobbies[0] || hobbies[0];
+
   const suggestions = [
-    { label: "Generate micro-goal", query: "I haven't played Dave the Diver for a while. What should I focus on next?" },
-    { label: "Summarize progress", query: "Can you summarize my current progress on all summer hobbies?" },
-    { label: "What to focus today?", query: "Help! I am feeling decision paralysis. What hobby should I focus on today?" }
+    {
+      label: "What to focus today?",
+      query: dailyFocusHobbies.length > 0
+        ? `My daily focus is ${dailyFocusHobbies.map(h => h.title).join(' and ')}. What should I work on first and how?`
+        : "I'm not sure what to work on today. Which of my hobbies should I focus on and why?"
+    },
+    {
+      label: "Review my progress",
+      query: hobbies.length > 0
+        ? `Can you review my progress across all my hobbies and tell me which ones need more attention?`
+        : "I haven't added any hobbies yet. What's a good way to get started?"
+    },
+    {
+      label: "Generate micro-goal",
+      query: firstHobby
+        ? `Help me create a 5-minute micro-goal for ${firstHobby.title}. My current state: "${firstHobby.last_brain_dump}".`
+        : "Help me create a micro-goal for one of my hobbies."
+    }
   ];
 
   return (

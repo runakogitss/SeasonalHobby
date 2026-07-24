@@ -10,7 +10,6 @@ interface HobbyFormData {
   id?: string;
   title: string;
   category: string;
-  season: 'summer' | 'winter';
   icon: string;
   color_theme: string;
   last_brain_dump: string;
@@ -22,7 +21,6 @@ interface HobbyFormData {
 
 interface EditHobbyModalProps {
   hobby?: Hobby | null;
-  season: 'summer' | 'winter';
   isOpen: boolean;
   onClose: () => void;
   onSave: (hobbyData: HobbyFormData) => void;
@@ -32,7 +30,7 @@ interface EditHobbyModalProps {
 const AVAILABLE_ICONS = ['gamepad', 'music', 'book', 'languages', 'code', 'activity', 'utensils'];
 const AVAILABLE_COLORS = ['purple', 'green', 'orange', 'blue', 'pink'];
 
-export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave, onDelete }: EditHobbyModalProps) {
+export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelete }: EditHobbyModalProps) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [icon, setIcon] = useState('gamepad');
@@ -58,7 +56,7 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
       const response = await fetch('/api/generate-hobby-meta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: titleVal, category: catVal, season })
+        body: JSON.stringify({ title: titleVal, category: catVal })
       });
       if (response.ok) {
         const data = await response.json();
@@ -113,7 +111,6 @@ export default function EditHobbyModal({ hobby, season, isOpen, onClose, onSave,
       id: hobby?.id, // undefined for new hobby
       title: title.trim(),
       category: category.trim().toLowerCase(),
-      season: hobby?.season || season,
       icon,
       color_theme: colorTheme,
       last_brain_dump: lastBrainDump.trim(),
