@@ -115,6 +115,9 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
 ]`;
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5500);
+
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -129,38 +132,58 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
               { role: 'system', content: systemInstruction },
               { role: 'user', content: 'Suggest 4 new creative hobbies.' }
             ],
-            temperature: 0.7
-          })
+            temperature: 0.7,
+            max_tokens: 550
+          }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           const text = data.choices?.[0]?.message?.content?.trim();
           if (text) {
-            const cleanText = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-            const parsed = JSON.parse(cleanText);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              return new Response(JSON.stringify(parsed), {
-                headers: { 'Content-Type': 'application/json' }
-              });
+            const jsonMatch = text.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const formatCat = (c: string): string => {
+                  if (!c) return 'General';
+                  return c.trim().split(/\s+/).map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '').join(' ');
+                };
+
+                // Sanitize items
+                const sanitized = parsed.map((item: any) => ({
+                  title: item.title || 'Creative Hobby',
+                  category: formatCat(item.category),
+                  icon: item.icon && !/\p{Extended_Pictographic}/u.test(item.icon) ? item.icon : 'Sparkles',
+                  color_theme: item.color_theme || '#a855f7',
+                  last_brain_dump: item.last_brain_dump || 'Getting started with this hobby.',
+                  micro_goal: item.micro_goal || 'Spend 5 minutes setting up.',
+                  notes: item.notes || ''
+                }));
+                return new Response(JSON.stringify(sanitized), {
+                  headers: { 'Content-Type': 'application/json' }
+                });
+              }
             }
           }
         }
       } catch (err) {
-        console.error('OpenRouter suggestions failed, using fallback:', err);
+        console.warn('OpenRouter suggest-hobbies timed out or failed, using fallback');
       }
     }
 
     // Fallback if no key or error
-    const filtered = FALLBACK_HOBBIES.filter(f => !existingList.some((h: any) => h.title.toLowerCase() === f.title.toLowerCase()));
+    const filtered = FALLBACK_HOBBIES.filter(f => !existingList.some((h: any) => h?.title && h.title.toLowerCase() === f.title.toLowerCase()));
     
     return new Response(JSON.stringify(filtered.length >= 4 ? filtered.slice(0, 4) : FALLBACK_HOBBIES.slice(0, 4)), {
       headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    // Return fallback even on unexpected top-level error
+    return new Response(JSON.stringify(FALLBACK_HOBBIES.slice(0, 4)), {
       headers: { 'Content-Type': 'application/json' }
     });
   }

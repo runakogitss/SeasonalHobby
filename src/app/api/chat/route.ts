@@ -45,43 +45,49 @@ Always respond as Stella. Never refer to yourself as an AI model or assistant. B
 
     // 2. If API Key is present, query OpenRouter
     if (apiKey) {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://github.com/seasonal-hobby-hub',
-          'X-Title': 'Seasonal Hobby Hub'
-        },
-        body: JSON.stringify({
-          model: 'poolside/laguna-xs-2.1:free',
-          messages: [
-            { role: 'system', content: systemInstruction },
-            { role: 'user', content: userMessage }
-          ],
-          stream: true,
-          reasoning: {
-            effort: 'medium'
-          }
-        })
-      });
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6500);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        return new Response(JSON.stringify({ error: `OpenRouter API error: ${errorText}` }), {
-          status: response.status,
-          headers: { 'Content-Type': 'application/json' }
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://github.com/seasonal-hobby-hub',
+            'X-Title': 'Seasonal Hobby Hub'
+          },
+          body: JSON.stringify({
+            model: 'poolside/laguna-xs-2.1:free',
+            messages: [
+              { role: 'system', content: systemInstruction },
+              { role: 'user', content: userMessage }
+            ],
+            stream: true,
+            max_tokens: 600,
+            reasoning: {
+              effort: 'low'
+            }
+          }),
+          signal: controller.signal
         });
-      }
+        clearTimeout(timeoutId);
 
-      // Pipe the OpenRouter stream directly or parse it to return clean SSE
-      return new Response(response.body, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
+        if (response.ok && response.body) {
+          return new Response(response.body, {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive'
+            }
+          });
+        } else {
+          const errText = await response.text();
+          console.warn('[OpenRouter Chat API Warning]', response.status, errText);
         }
-      });
+      } catch (err) {
+        console.error('[OpenRouter Chat API Error]', err);
+      }
     }
 
     // 3. Fallback: Data-driven simulated streaming response for offline/localStorage testing

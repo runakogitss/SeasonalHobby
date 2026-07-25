@@ -102,8 +102,9 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
               // Check if OpenRouter format or simulator format
               const delta = dataObj.choices?.[0]?.delta;
               if (delta) {
-                if (delta.reasoning_content) {
-                  acc.reasoning += delta.reasoning_content;
+                const reasoningChunk = delta.reasoning || delta.reasoning_content || (Array.isArray(delta.reasoning_details) ? delta.reasoning_details.map((d: any) => d.text || '').join('') : '');
+                if (reasoningChunk) {
+                  acc.reasoning += reasoningChunk;
                 }
                 if (delta.content) {
                   acc.content += delta.content;

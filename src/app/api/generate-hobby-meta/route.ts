@@ -42,6 +42,11 @@ function getFallbackMeta(title: string, season: 'summer' | 'winter') {
   }
 }
 
+function formatCat(c: string): string {
+  if (!c) return '';
+  return c.trim().split(/\s+/).map(w => w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : '').join(' ');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { title, category, season } = await req.json();
@@ -54,18 +59,21 @@ export async function POST(req: NextRequest) {
     if (apiKey) {
       const systemInstruction = `You are an AI metadata generator for a seasonal hobby hub dashboard application.
 Your task is to take a hobby title, category (if specified), and the current season, and generate:
-1. A suitable lowercase 1-2 word category name (feel free to reuse or refine the user's category if they provided one).
-2. A matching Lucide icon name (in PascalCase, e.g., 'Gamepad', 'Music', 'BookOpen', 'Code2', 'Activity', 'Utensils', 'Palette', 'Coffee', 'Dumbbell', 'Tv', 'Heart', 'Camera', 'Compass', 'Map', 'Bicycle', 'Sailboat', 'Sword', 'Crown'). Choose any standard, descriptive Lucide icon that fits the hobby.
-3. A hex color code that forms a beautiful, premium color theme for this hobby. Avoid plain/harsh colors. Choose a soft, modern, aesthetic hue (e.g. violet, emerald, amber, rose, sky-blue, teal, indigo).
+1. A suitable Title Case 1-2 word category name.
+2. A matching Lucide icon name (in PascalCase, e.g., 'Gamepad', 'Music', 'BookOpen', 'Code2', 'Activity', 'Utensils', 'Palette', 'Coffee', 'Dumbbell', 'Tv', 'Heart', 'Camera', 'Compass', 'Map', 'Bicycle', 'Sailboat', 'Sword', 'Crown').
+3. A hex color code representing a soft, aesthetic hue.
 
-Format your response strictly as a JSON object, with no markdown code block formatting (do not wrap in \`\`\`json ... \`\`\`), no trailing commas, and no explanations. Only return the raw JSON:
+Format strictly as JSON object with no markdown wrappers:
 {
-  "category": "category name",
+  "category": "Category Name",
   "icon": "LucideIconName",
   "color_theme": "#HEXCODE"
 }`;
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
+
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -80,26 +88,36 @@ Format your response strictly as a JSON object, with no markdown code block form
               { role: 'system', content: systemInstruction },
               { role: 'user', content: `Hobby Title: "${title}", Provided Category: "${category || ''}", Season: "${season}"` }
             ],
-            temperature: 0.2
-          })
+            temperature: 0.2,
+            max_tokens: 150
+          }),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           const text = data.choices?.[0]?.message?.content?.trim();
           if (text) {
-            // Strip any code block markdown wrappers if present
-            const cleanText = text.replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-            const parsed = JSON.parse(cleanText);
-            if (parsed.category && parsed.icon && parsed.color_theme) {
-              return new Response(JSON.stringify(parsed), {
-                headers: { 'Content-Type': 'application/json' }
-              });
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.category || parsed.icon || parsed.color_theme) {
+                const fallback = getFallbackMeta(title, season);
+                const rawCat = parsed.category || fallback.category;
+                return new Response(JSON.stringify({
+                  category: formatCat(rawCat),
+                  icon: parsed.icon && !/\p{Extended_Pictographic}/u.test(parsed.icon) ? parsed.icon : fallback.icon,
+                  color_theme: parsed.color_theme || fallback.color_theme
+                }), {
+                  headers: { 'Content-Type': 'application/json' }
+                });
+              }
             }
           }
         }
       } catch (err) {
-        console.error('OpenRouter generation failed, using fallback:', err);
+        console.warn('OpenRouter metadata generation timed out or failed, using fallback');
       }
     }
 
@@ -110,8 +128,8 @@ Format your response strictly as a JSON object, with no markdown code block form
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    const fallback = getFallbackMeta('Hobby', 'summer');
+    return new Response(JSON.stringify(fallback), {
       headers: { 'Content-Type': 'application/json' }
     });
   }

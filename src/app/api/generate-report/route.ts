@@ -69,7 +69,7 @@ Keep the tone warm, specific, and personal. Reference actual hobby titles from t
         'X-Title': 'Seasonal Hobby Hub'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
+        model: 'poolside/laguna-xs-2.1:free',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 700,
         temperature: 0.75

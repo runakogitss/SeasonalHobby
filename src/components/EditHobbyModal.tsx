@@ -43,6 +43,15 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+  const formatCategory = (str: string): string => {
+    if (!str) return '';
+    return str
+      .trim()
+      .split(/\s+/)
+      .map(word => word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : '')
+      .join(' ');
+  };
+
   const getIconComponent = (iconName: string) => {
     const normalized = iconName.charAt(0).toUpperCase() + iconName.slice(1);
     const IconComp = (LucideIcons as any)[normalized] || (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
@@ -60,7 +69,7 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
       });
       if (response.ok) {
         const data = await response.json();
-        if (data.category && !catVal.trim()) setCategory(data.category);
+        if (data.category && !catVal.trim()) setCategory(formatCategory(data.category));
         if (data.icon) setIcon(data.icon);
         if (data.color_theme) setColorTheme(data.color_theme);
       }
@@ -76,7 +85,7 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
   useEffect(() => {
     if (hobby) {
       setTitle(hobby.title);
-      setCategory(hobby.category);
+      setCategory(formatCategory(hobby.category));
       setIcon(hobby.icon);
       setColorTheme(hobby.color_theme);
       setLastBrainDump(hobby.last_brain_dump || '');
@@ -110,7 +119,7 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
     const hobbyData = {
       id: hobby?.id, // undefined for new hobby
       title: title.trim(),
-      category: category.trim().toLowerCase(),
+      category: formatCategory(category),
       icon,
       color_theme: colorTheme,
       last_brain_dump: lastBrainDump.trim(),
@@ -145,7 +154,7 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
           {/* Title and Category */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="hobby-title" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5 flex items-center justify-between">
+              <label htmlFor="hobby-title" className="text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5 flex items-center justify-between min-h-[24px]">
                 <span>Hobby Title</span>
                 <button
                   type="button"
@@ -178,8 +187,8 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
               />
             </div>
             <div>
-              <label htmlFor="hobby-category" className="block text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5">
-                Category
+              <label htmlFor="hobby-category" className="text-xs font-bold uppercase tracking-wider text-season-muted mb-1.5 flex items-center min-h-[24px]">
+                <span>Category</span>
               </label>
               <div className="relative">
                 <input
@@ -188,11 +197,14 @@ export default function EditHobbyModal({ hobby, isOpen, onClose, onSave, onDelet
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   onBlur={() => {
+                    if (category.trim()) {
+                      setCategory(formatCategory(category));
+                    }
                     if (title.trim()) {
                       handleAutoSuggest(title, category);
                     }
                   }}
-                  placeholder="e.g. gaming, music, coding"
+                  placeholder="e.g. Gaming, Music, Coding"
                   className="w-full px-4 py-2.5 rounded-xl border border-season-border bg-season-card text-season-text text-sm font-semibold focus:outline-hidden focus:border-season-accent"
                   required
                 />

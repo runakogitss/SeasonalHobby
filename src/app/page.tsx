@@ -1,8 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSeason } from '@/context/SeasonContext';
+import { supabase } from '@/lib/supabase';
 import { 
   getHobbies, 
   getActivityLogs, 
@@ -11,10 +12,20 @@ import {
   updateHobby, 
   deleteHobby, 
   markHobbyGoalCompleted, 
+  saveActivityLogs,
   Hobby, 
   ActivityLog,
   isSandboxModeActive
 } from '@/lib/storage';
+import {
+  fetchHobbiesFromDb,
+  fetchActivityLogsFromDb,
+  addHobbyToDb,
+  updateHobbyInDb,
+  toggleDailyFocusInDb,
+  deleteHobbyFromDb,
+  markHobbyGoalCompletedInDb
+} from '@/lib/db';
 import Sidebar from '@/components/Sidebar';
 import HobbyCard from '@/components/HobbyCard';
 import HobbyDetailModal from '@/components/HobbyDetailModal';
@@ -24,6 +35,7 @@ import StatsView from '@/components/StatsView';
 import SettingsView from '@/components/SettingsView';
 import AIAssistant from '@/components/AIAssistant';
 import StellaSuggestionsModal from '@/components/StellaSuggestionsModal';
+import AuthModal from '@/components/AuthModal';
 import { 
   Plus, 
   Sparkles, 
@@ -33,7 +45,9 @@ import {
   ListPlus, 
   AlertTriangle,
   X,
-  Compass
+  Compass,
+  Cloud,
+  LogIn
 } from 'lucide-react';
 
 export default function Home() {
@@ -44,6 +58,8 @@ export default function Home() {
   const [hobbies, setHobbies] = useState<Hobby[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [userName, setUserName] = useState('Reynard');
+  const [user, setUser] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   // Modal States
   const [selectedHobby, setSelectedHobby] = useState<Hobby | null>(null);
@@ -66,51 +82,145 @@ export default function Home() {
   // Sandbox Mode State
   const [isSandbox, setIsSandbox] = useState(false);
 
-  // Load datasets on mount and active userName
+  const isSandboxRef = useRef(isSandbox);
+  const userIdRef = useRef<string | null>(null);
+  const loadDataRef = useRef<(authUserId?: string | null) => Promise<void>>(async () => {});
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const mode = localStorage.getItem('sandbox-mode-enabled') === 'true';
-      setIsSandbox(mode);
-    }
-    setHobbies(getHobbies());
-    setLogs(getActivityLogs());
-
-    if (typeof window !== 'undefined') {
-      const savedName = localStorage.getItem('settings-user-name');
-      if (savedName) setUserName(savedName);
-    }
-  }, []);
-
-  const handleToggleSandbox = () => {
-    const nextSandbox = !isSandbox;
-    localStorage.setItem('sandbox-mode-enabled', String(nextSandbox));
-    setIsSandbox(nextSandbox);
-    // Reload state after mode toggle
-    setHobbies(getHobbies());
-    setLogs(getActivityLogs());
-    showToast(nextSandbox ? "Switched to clean Sandbox Mode (0 hobbies)!" : "Switched to Standard Mode (Seeded hobbies)!");
-  };
-
-  // Listen for storage or config changes (like name change in settings)
-  useEffect(() => {
-    if (activeTab !== 'settings') {
-      if (typeof window !== 'undefined') {
-        const savedName = localStorage.getItem('settings-user-name');
-        if (savedName) setUserName(savedName);
-      }
-    }
-  }, [activeTab]);
+    isSandboxRef.current = isSandbox;
+  }, [isSandbox]);
 
   const showToast = (message: string) => {
     setErrorToast(message);
     setTimeout(() => setErrorToast(null), 5000);
   };
 
+  // Fetch datasets either from Supabase (if logged in) or LocalStorage
+  const loadData = useCallback(async (authUserId?: string | null) => {
+    const resolvedUserId = authUserId ?? userIdRef.current;
+    const useCloud = Boolean(resolvedUserId && !isSandboxRef.current);
+
+    if (useCloud && resolvedUserId) {
+      try {
+        const [dbHobbies, dbLogs] = await Promise.all([
+          fetchHobbiesFromDb(resolvedUserId),
+          fetchActivityLogsFromDb(resolvedUserId)
+        ]);
+        setHobbies(dbHobbies);
+        setLogs(dbLogs);
+      } catch (err: any) {
+        showToast(`Cloud fetch failed: ${err.message}. Showing local data.`);
+        setHobbies(getHobbies());
+        setLogs(getActivityLogs());
+      }
+    } else {
+      setHobbies(getHobbies());
+      setLogs(getActivityLogs());
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
+  const syncAuthUser = useCallback((nextUser: any | null) => {
+    const nextUserId = nextUser?.id ?? null;
+    const userChanged = nextUserId !== userIdRef.current;
+
+    userIdRef.current = nextUserId;
+
+    if (userChanged) {
+      setUser(nextUser);
+      loadDataRef.current(nextUserId);
+    }
+  }, []);
+
+  // Auth session initialization and listener (runs once)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const mode = localStorage.getItem('sandbox-mode-enabled') === 'true';
+      isSandboxRef.current = mode;
+      setIsSandbox(mode);
+
+      const savedName = localStorage.getItem('settings-user-name');
+      if (savedName) setUserName(savedName);
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      syncAuthUser(data.session?.user ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncAuthUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [syncAuthUser]);
+
+  // Supabase Real-time Channel listener
+  useEffect(() => {
+    if (!user?.id || isSandbox) return;
+
+    const userId = user.id;
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleReload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        loadDataRef.current(userId);
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel(`realtime-seasonal-hub-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hobbies', filter: `user_id=eq.${userId}` }, scheduleReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs', filter: `user_id=eq.${userId}` }, scheduleReload)
+      .subscribe();
+
+    return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, isSandbox]);
+
+  // Refresh display name after saving in Settings
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedName = localStorage.getItem('settings-user-name');
+      if (savedName) setUserName(savedName);
+    }
+  }, [activeTab]);
+
+  const handleToggleSandbox = () => {
+    const nextSandbox = !isSandbox;
+    localStorage.setItem('sandbox-mode-enabled', String(nextSandbox));
+    isSandboxRef.current = nextSandbox;
+    setIsSandbox(nextSandbox);
+    loadData(userIdRef.current);
+    showToast(nextSandbox ? "Switched to clean Sandbox Mode!" : "Switched to Active Data Mode!");
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    syncAuthUser(null);
+    showToast("Successfully signed out.");
+  };
+
   // State Mutators
-  const handleToggleFocus = (id: string) => {
+  const handleToggleFocus = async (id: string) => {
     try {
-      const updated = toggleDailyFocus(id);
-      setHobbies(updated);
+      if (user && !isSandbox) {
+        const target = hobbies.find(h => h.id === id);
+        if (target) {
+          await toggleDailyFocusInDb(target);
+          await loadData(user.id);
+        }
+      } else {
+        const updated = toggleDailyFocus(id);
+        setHobbies(updated);
+      }
     } catch (error: any) {
       showToast(error.message);
     }
@@ -135,9 +245,9 @@ export default function Home() {
     setIsEditOpen(true);
   };
 
-  const handleSelectSuggestedDirect = (suggested: any) => {
+  const handleSelectSuggestedDirect = async (suggested: any) => {
     try {
-      addHobby({
+      const newHobbyData = {
         title: suggested.title,
         category: suggested.category,
         icon: suggested.icon,
@@ -147,8 +257,15 @@ export default function Home() {
         notes: suggested.notes,
         is_daily_focus: false,
         progress: 0
-      });
-      setHobbies(getHobbies());
+      };
+
+      if (user && !isSandbox) {
+        await addHobbyToDb(user.id, newHobbyData);
+        await loadData(user.id);
+      } else {
+        addHobby(newHobbyData);
+        setHobbies(getHobbies());
+      }
       setIsSuggestionsOpen(false);
       showToast(`Hobby "${suggested.title}" successfully added by Stella!`);
     } catch (error: any) {
@@ -156,27 +273,43 @@ export default function Home() {
     }
   };
 
-  const handleSaveHobby = (hobbyData: any) => {
+  const handleSaveHobby = async (hobbyData: any) => {
     try {
-      if (hobbyData.id) {
-        // Editing existing
-        const updated = updateHobby(hobbyData as Hobby);
-        setHobbies(updated);
+      if (user && !isSandbox) {
+        if (hobbyData.id) {
+          await updateHobbyInDb(hobbyData as Hobby);
+        } else {
+          await addHobbyToDb(user.id, {
+            title: hobbyData.title,
+            category: hobbyData.category,
+            icon: hobbyData.icon,
+            color_theme: hobbyData.color_theme,
+            last_brain_dump: hobbyData.last_brain_dump,
+            micro_goal: hobbyData.micro_goal,
+            notes: hobbyData.notes,
+            is_daily_focus: hobbyData.is_daily_focus,
+            progress: hobbyData.progress || 0
+          });
+        }
+        await loadData(user.id);
       } else {
-        // Adding new
-        const newHobbyData = {
-          title: hobbyData.title,
-          category: hobbyData.category,
-          icon: hobbyData.icon,
-          color_theme: hobbyData.color_theme,
-          last_brain_dump: hobbyData.last_brain_dump,
-          micro_goal: hobbyData.micro_goal,
-          notes: hobbyData.notes,
-          is_daily_focus: hobbyData.is_daily_focus,
-          progress: hobbyData.progress || 0
-        };
-        addHobby(newHobbyData);
-        setHobbies(getHobbies());
+        if (hobbyData.id) {
+          const updated = updateHobby(hobbyData as Hobby);
+          setHobbies(updated);
+        } else {
+          addHobby({
+            title: hobbyData.title,
+            category: hobbyData.category,
+            icon: hobbyData.icon,
+            color_theme: hobbyData.color_theme,
+            last_brain_dump: hobbyData.last_brain_dump,
+            micro_goal: hobbyData.micro_goal,
+            notes: hobbyData.notes,
+            is_daily_focus: hobbyData.is_daily_focus,
+            progress: hobbyData.progress || 0
+          });
+          setHobbies(getHobbies());
+        }
       }
       setIsEditOpen(false);
       setSelectedHobby(null);
@@ -185,20 +318,37 @@ export default function Home() {
     }
   };
 
-  const handleDeleteHobby = (id: string) => {
-    const updated = deleteHobby(id);
-    setHobbies(updated);
-    setLogs(getActivityLogs()); // Reload logs since references might clear
-    setIsDetailOpen(false);
-    setIsEditOpen(false);
-    setSelectedHobby(null);
+  const handleDeleteHobby = async (id: string) => {
+    try {
+      if (user && !isSandbox) {
+        await deleteHobbyFromDb(id);
+        await loadData(user.id);
+      } else {
+        const updated = deleteHobby(id);
+        setHobbies(updated);
+        setLogs(getActivityLogs());
+      }
+      setIsDetailOpen(false);
+      setIsEditOpen(false);
+      setSelectedHobby(null);
+    } catch (error: any) {
+      showToast(error.message);
+    }
   };
 
-  const handleMarkGoalDone = (id: string, nextDump: string, nextGoal: string, nextNotes: string) => {
+  const handleMarkGoalDone = async (id: string, nextDump: string, nextGoal: string, nextNotes: string) => {
     try {
-      const result = markHobbyGoalCompleted(id, nextDump, nextGoal, nextNotes);
-      setHobbies(result.hobbies);
-      setLogs(result.logs);
+      const targetHobby = hobbies.find(h => h.id === id);
+      if (!targetHobby) throw new Error('Hobby not found');
+
+      if (user && !isSandbox) {
+        await markHobbyGoalCompletedInDb(user.id, targetHobby, nextDump, nextGoal, nextNotes);
+        await loadData(user.id);
+      } else {
+        const result = markHobbyGoalCompleted(id, nextDump, nextGoal, nextNotes);
+        setHobbies(result.hobbies);
+        setLogs(result.logs);
+      }
       setIsDetailOpen(false);
       setSelectedHobby(null);
     } catch (error: any) {
@@ -210,26 +360,34 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('seasonal-hobbies');
       localStorage.removeItem('seasonal-activity-logs');
-      setHobbies(getHobbies());
-      setLogs(getActivityLogs());
+      loadData(userIdRef.current);
       setCategoryFilter('all');
     }
   };
 
-  const handleApplyMicroGoal = (hobbyTitle: string, newMicroGoal: string) => {
-    const list = getHobbies();
-    const index = list.findIndex(h => h.title.toLowerCase() === hobbyTitle.toLowerCase());
-    
-    if (index !== -1) {
-      list[index] = {
-        ...list[index],
+  const handleApplyMicroGoal = async (hobbyTitle: string, newMicroGoal: string) => {
+    const target = hobbies.find(h => h.title.toLowerCase() === hobbyTitle.toLowerCase());
+    if (!target) {
+      showToast(`Hobby "${hobbyTitle}" not found to apply micro-goal.`);
+      return;
+    }
+
+    try {
+      const updatedHobby = {
+        ...target,
         micro_goal: newMicroGoal,
         updated_at: new Date().toISOString()
       };
-      updateHobby(list[index]);
-      setHobbies(getHobbies());
-    } else {
-      showToast(`Hobby "${hobbyTitle}" not found to apply micro-goal.`);
+
+      if (user && !isSandbox) {
+        await updateHobbyInDb(updatedHobby);
+        await loadData(user.id);
+      } else {
+        updateHobby(updatedHobby);
+        setHobbies(getHobbies());
+      }
+    } catch (err: any) {
+      showToast(err.message);
     }
   };
 
@@ -239,14 +397,15 @@ export default function Home() {
     return h.category === categoryFilter;
   });
 
-  // Extract unique categories for filter chips
-  const uniqueCategories = Array.from(new Set(hobbies.map(h => h.category)));
-
   // Today's focus items (Max 2)
   const todayFocusItems = hobbies.filter(h => h.is_daily_focus);
 
-  // Dropdown list for adding focus items easily
-  const nonFocusHobbies = hobbies.filter(h => !h.is_daily_focus);
+  const getDisplayName = () => {
+    const savedName = userName.trim();
+    if (savedName) return savedName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'Friend';
+  };
 
   // Greeting Message
   const getGreeting = () => {
@@ -255,11 +414,27 @@ export default function Home() {
     if (hour < 12) timeGreeting = "Good morning";
     else if (hour > 17) timeGreeting = "Good evening";
 
-    return `${timeGreeting}, ${userName}! ✨`;
+    return `${timeGreeting}, ${getDisplayName()}! ✨`;
   };
 
   const getGreetingSubtext = () => {
     return "Track your hobbies, complete micro-goals, and build progress daily.";
+  };
+
+  const handleDeleteLog = async (id: string) => {
+    try {
+      if (user && !isSandbox) {
+        await supabase.from('activity_logs').delete().eq('id', id);
+        await loadData(user.id);
+      } else {
+        const currentLogs = getActivityLogs();
+        const updated = currentLogs.filter(l => l.id !== id);
+        saveActivityLogs(updated);
+        setLogs(updated);
+      }
+    } catch (err: any) {
+      showToast(err.message);
+    }
   };
 
   return (
@@ -270,11 +445,18 @@ export default function Home() {
         <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-xs font-bold shadow-xl animate-in slide-in-from-top-4 duration-300">
           <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
           <span>{errorToast}</span>
-          <button onClick={() => setErrorToast(null)} className="ml-2 hover:opacity-75">
+          <button onClick={() => setErrorToast(null)} className="ml-2 hover:opacity-75 cursor-pointer">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {}}
+      />
 
       {/* Navigation Sidebar */}
       <Sidebar 
@@ -291,7 +473,7 @@ export default function Home() {
         <header className="flex h-16 items-center justify-between border-b border-season-border bg-season-card px-4 lg:hidden sticky top-0 z-20 backdrop-blur-md">
           <button 
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="p-1.5 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text"
+            className="p-1.5 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text cursor-pointer"
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -301,16 +483,26 @@ export default function Home() {
           </span>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleToggleSandbox}
-              className={`p-1.5 rounded-lg border text-xs font-bold ${isSandbox ? 'bg-purple-600 text-white border-purple-600' : 'bg-season-card text-purple-600 border-season-border'}`}
-              title="Toggle Sandbox Mode"
-            >
-              🧪
-            </button>
+            {!user ? (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="p-1.5 rounded-lg text-season-accent border border-season-accent/30 font-bold text-xs"
+                title="Sign In"
+              >
+                <LogIn className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleToggleSandbox}
+                className={`p-1.5 rounded-lg border text-xs font-bold ${isSandbox ? 'bg-purple-600 text-white border-purple-600' : 'bg-season-card text-purple-600 border-season-border'}`}
+                title="Toggle Sandbox Mode"
+              >
+                🧪
+              </button>
+            )}
             <button
               onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
-              className="p-1.5 rounded-lg text-season-accent bg-season-accent-light/50 border border-season-accent/20"
+              className="p-1.5 rounded-lg text-season-accent bg-season-accent-light/50 border border-season-accent/20 cursor-pointer"
             >
               <Sparkles className="h-4.5 w-4.5" />
             </button>
@@ -329,19 +521,30 @@ export default function Home() {
 
             {/* AI Floating Toggle & User Avatar */}
             <div className="flex items-center gap-4">
-              <button
-                onClick={handleToggleSandbox}
-                className={`
-                  flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer
-                  ${isSandbox 
-                    ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20' 
-                    : 'bg-season-card text-purple-600 border-season-border hover:bg-season-bg'
-                  }
-                `}
-              >
-                <span>🧪</span>
-                <span>{isSandbox ? 'Sandbox Mode' : 'Sandbox (Empty Slate)'}</span>
-              </button>
+              {/* Account Login / Sign in state button */}
+              {!user ? (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-season-accent text-white shadow-md shadow-season-accent/25 hover:opacity-90 transition-all cursor-pointer"
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span>Account Login</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleToggleSandbox}
+                  className={`
+                    flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer
+                    ${isSandbox 
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20' 
+                      : 'bg-season-card text-purple-600 border-season-border hover:bg-season-bg'
+                    }
+                  `}
+                >
+                  <span>🧪</span>
+                  <span>{isSandbox ? 'Sandbox Mode' : 'Sandbox (Empty Slate)'}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
@@ -357,15 +560,24 @@ export default function Home() {
                 Stella
               </button>
 
-              <div className="flex items-center gap-2.5 border-l border-season-border pl-4">
-                <div className="w-9 h-9 rounded-full bg-season-bg border border-season-border flex items-center justify-center text-season-muted text-sm font-black shadow-xs">
-                  {userName.charAt(0).toUpperCase()}
+              <button
+                onClick={() => {
+                  if (!user) setIsAuthModalOpen(true);
+                  else setActiveTab('settings');
+                }}
+                className="flex items-center gap-2.5 border-l border-season-border pl-4 text-left cursor-pointer group"
+                title={user ? "Account Logged In (Click to manage)" : "Click to Account Login"}
+              >
+                <div className="w-9 h-9 rounded-full bg-season-bg border border-season-border flex items-center justify-center text-season-muted text-sm font-black shadow-xs group-hover:border-season-accent transition-colors">
+                  {getDisplayName().charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-xs font-bold leading-none">{userName}</p>
-                  <span className="text-[10px] text-season-muted capitalize font-semibold">{isSandbox ? 'sandbox' : 'active'} mode</span>
+                  <p className="text-xs font-bold leading-none group-hover:text-season-accent transition-colors">{getDisplayName()}</p>
+                  <span className="text-[10px] text-season-muted capitalize font-semibold block mt-0.5">
+                    {user ? 'Account Logged In' : 'Account Login'}
+                  </span>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -414,7 +626,7 @@ export default function Home() {
                           e.stopPropagation();
                           handleToggleFocus(h.id);
                         }}
-                        className="p-1 rounded-lg text-amber-500 hover:bg-season-bg font-black text-xs"
+                        className="p-1 rounded-lg text-amber-500 hover:bg-season-bg font-black text-xs cursor-pointer"
                         title="Remove focus"
                       >
                         ✕
@@ -461,7 +673,7 @@ export default function Home() {
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-season-accent/30 text-season-accent hover:bg-season-accent/10 font-bold text-xs cursor-pointer"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Stella's Suggestion
+                      Stella&apos;s Suggestion
                     </button>
 
                     {/* Add Card Button */}
@@ -475,7 +687,6 @@ export default function Home() {
                       <Plus className="h-3.5 w-3.5" />
                       Add Hobby Planner Card
                     </button>
-
                   </div>
                 </div>
 
@@ -492,7 +703,7 @@ export default function Home() {
                         setSelectedHobby(null);
                         setIsEditOpen(true);
                       }}
-                      className="px-4 py-2 rounded-xl bg-season-accent text-white font-bold text-xs"
+                      className="px-4 py-2 rounded-xl bg-season-accent text-white font-bold text-xs cursor-pointer"
                     >
                       Create Planner Card
                     </button>
@@ -519,7 +730,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-
             </div>
           )}
 
@@ -590,7 +800,7 @@ export default function Home() {
                   </p>
                   <button
                     onClick={() => setActiveTab('dashboard')}
-                    className="px-4 py-2 bg-season-accent text-white text-xs font-bold rounded-xl"
+                    className="px-4 py-2 bg-season-accent text-white text-xs font-bold rounded-xl cursor-pointer"
                   >
                     Go to Dashboard
                   </button>
@@ -622,7 +832,7 @@ export default function Home() {
                           </div>
                           <div className="mt-3">
                             <span className="text-[9px] font-bold text-season-muted uppercase tracking-wider block mb-1">Last brain dump status</span>
-                             <p className="font-medium text-xs text-season-text/80 italic">&ldquo;{hobby.last_brain_dump}&rdquo;</p>
+                            <p className="font-medium text-xs text-season-text/80 italic">&ldquo;{hobby.last_brain_dump}&rdquo;</p>
                           </div>
                         </div>
                       </div>
@@ -633,7 +843,7 @@ export default function Home() {
                           setSelectedHobby(hobby);
                           setIsDetailOpen(true);
                         }}
-                        className="w-full mt-4 py-3 rounded-xl bg-season-accent hover:opacity-95 text-white font-bold text-xs text-center shadow-md shadow-season-accent/15"
+                        className="w-full mt-4 py-3 rounded-xl bg-season-accent hover:opacity-95 text-white font-bold text-xs text-center shadow-md shadow-season-accent/15 cursor-pointer"
                       >
                         Start Session & Complete Goal
                       </button>
@@ -644,58 +854,51 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB: JOURNAL LEDGER */}
-          {activeTab === 'journal' && (
-            <JournalView logs={logs} onDeleteLog={handleDeleteHobby} />
-          )}
+          {/* TAB: JOURNAL */}
+          {activeTab === 'journal' && <JournalView logs={logs} onDeleteLog={handleDeleteLog} />}
 
-          {/* TAB: ANALYTICS STATS */}
-          {activeTab === 'stats' && (
-            <StatsView hobbies={hobbies} logs={logs} />
-          )}
+          {/* TAB: STATS */}
+          {activeTab === 'stats' && <StatsView hobbies={hobbies} logs={logs} user={user} />}
 
-          {/* TAB: SYSTEM SETTINGS */}
+          {/* TAB: SETTINGS */}
           {activeTab === 'settings' && (
-            <SettingsView onResetData={handleResetData} />
+            <SettingsView 
+              onResetData={handleResetData}
+              user={user}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              onSignOut={handleSignOut}
+            />
           )}
 
         </div>
-
-        {/* Sliding AI Assistant side-panel (Overlay drawer on desktop/mobile) */}
-        <div className={`
-          fixed top-0 bottom-0 right-0 z-50 w-full sm:w-96 border-l border-season-border bg-season-card
-          shadow-2xl transition-all duration-300 ease-in-out
-          ${isAiPanelOpen ? 'translate-x-0' : 'translate-x-full'}
-        `}>
-          <div className="flex flex-col h-full">
-            {/* Header close bar */}
-            <div className="flex h-16 items-center justify-between border-b border-season-border bg-season-bg/10 px-4">
-              <span className="font-extrabold text-sm text-season-text flex items-center gap-1.5">
-                <Sparkles className="h-4.5 w-4.5 text-season-accent" />
-                Stella
-              </span>
-              <button
-                onClick={() => setIsAiPanelOpen(false)}
-                className="p-1.5 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            {/* AIAssistant main panel */}
-            <div className="flex-1 p-4 overflow-y-auto">
-              <AIAssistant 
-                hobbies={hobbies}
-                logs={logs}
-                onApplyMicroGoal={handleApplyMicroGoal}
-              />
-            </div>
-          </div>
-        </div>
-
       </main>
 
-      {/* Hobby inspect detail modal */}
+      {/* AI Assistant Drawer Panel */}
+      {isAiPanelOpen && (
+        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-season-card border-l border-season-border shadow-2xl z-40 flex flex-col animate-in slide-in-from-right duration-300">
+          <div className="flex items-center justify-between p-4 border-b border-season-border">
+            <span className="font-extrabold text-sm flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-season-accent" />
+              Stella Copilot
+            </span>
+            <button
+              onClick={() => setIsAiPanelOpen(false)}
+              className="p-1 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-hidden p-4">
+            <AIAssistant 
+              hobbies={hobbies} 
+              logs={logs} 
+              onApplyMicroGoal={handleApplyMicroGoal} 
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
       <HobbyDetailModal
         hobby={selectedHobby}
         isOpen={isDetailOpen}
@@ -710,12 +913,10 @@ export default function Home() {
         onMarkDone={handleMarkGoalDone}
         onToggleFocus={(id) => {
           handleToggleFocus(id);
-          // Sync current inspected hobby reference state
           setSelectedHobby(prev => prev ? { ...prev, is_daily_focus: !prev.is_daily_focus } : null);
         }}
       />
 
-      {/* Hobby edit/create card modal */}
       <EditHobbyModal
         hobby={selectedHobby}
         isOpen={isEditOpen}
@@ -727,15 +928,16 @@ export default function Home() {
         onDelete={handleDeleteHobby}
       />
 
-      {/* Stella seasonal hobby suggestions modal */}
-      <StellaSuggestionsModal
-        isOpen={isSuggestionsOpen}
-        onClose={() => setIsSuggestionsOpen(false)}
-        season={season}
-        existingHobbies={hobbies}
-        onAddDirect={handleSelectSuggestedDirect}
-        onCustomize={handleSelectSuggestedCustomize}
-      />
+      {isSuggestionsOpen && (
+        <StellaSuggestionsModal
+          isOpen={isSuggestionsOpen}
+          onClose={() => setIsSuggestionsOpen(false)}
+          season={season}
+          existingHobbies={hobbies}
+          onAddDirect={handleSelectSuggestedDirect}
+          onCustomize={handleSelectSuggestedCustomize}
+        />
+      )}
 
     </div>
   );

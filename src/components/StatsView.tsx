@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Hobby, ActivityLog } from '@/lib/storage';
+import { fetchUserStreakFromDb, fetchAnalyticsDashboardFromDb } from '@/lib/db';
 import { BarChart3, Layers, Target, CheckCircle2, Award, Flame, Sparkles, FileText, Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface StatsViewProps {
   hobbies: Hobby[];
   logs: ActivityLog[];
+  user?: any;
 }
 
 // Helper to render the AI report text with bold markdown sections highlighted
@@ -49,25 +51,42 @@ function ReportRenderer({ text }: { text: string }) {
   );
 }
 
-export default function StatsView({ hobbies, logs }: StatsViewProps) {
+export default function StatsView({ hobbies, logs, user }: StatsViewProps) {
   // Report state
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [isReportExpanded, setIsReportExpanded] = useState(true);
 
+  // Db analytics and streak state
+  const [dbStreak, setDbStreak] = useState<number | null>(null);
+  const [dbAnalytics, setDbAnalytics] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserStreakFromDb(user.id).then((streak) => setDbStreak(streak));
+      fetchAnalyticsDashboardFromDb(user.id).then((data) => {
+        setDbAnalytics(data ?? null);
+      });
+    } else {
+      setDbStreak(null);
+      setDbAnalytics(null);
+    }
+  }, [user?.id, logs.length, hobbies.length]);
+
   // Filters and metrics
-  const totalHobbiesCount = hobbies.length;
-  
-  const totalCompletedGoals = logs.length;
+  const totalHobbiesCount = dbAnalytics ? dbAnalytics.total_hobbies : hobbies.length;
+  const totalCompletedGoals = dbAnalytics ? dbAnalytics.total_logged_sessions : logs.length;
   
   // Average Progress
-  const averageProgress = totalHobbiesCount > 0 
-    ? Math.round(hobbies.reduce((acc, h) => acc + h.progress, 0) / totalHobbiesCount)
-    : 0;
+  const averageProgress = dbAnalytics
+    ? dbAnalytics.average_progress
+    : (totalHobbiesCount > 0 
+        ? Math.round(hobbies.reduce((acc, h) => acc + h.progress, 0) / totalHobbiesCount)
+        : 0);
 
-  // Streak calculations (simple mock/demo streak based on logs)
-  const currentStreak = logs.length > 0 ? Math.min(logs.length, 5) : 0;
+  // Streak calculations (uses SQL RPC when logged in, or local array length)
+  const currentStreak = dbStreak !== null ? dbStreak : (logs.length > 0 ? Math.min(logs.length, 5) : 0);
 
   // Category statistics
   const categoryStats = hobbies.reduce((acc, h) => {
@@ -161,7 +180,7 @@ export default function StatsView({ hobbies, logs }: StatsViewProps) {
           </div>
           <p className="text-2xl font-black text-season-text">{currentStreak} days</p>
           <p className="text-[10px] font-semibold text-season-muted mt-1">
-            Keep the momentum going!
+            {user ? 'Live PostgreSQL streak count' : 'Keep the momentum going!'}
           </p>
         </div>
       </div>
@@ -223,7 +242,7 @@ export default function StatsView({ hobbies, logs }: StatsViewProps) {
             {report && (
               <button
                 onClick={() => setIsReportExpanded(e => !e)}
-                className="p-1.5 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text transition-colors"
+                className="p-1.5 rounded-lg text-season-muted hover:bg-season-bg hover:text-season-text transition-colors cursor-pointer"
                 title={isReportExpanded ? 'Collapse report' : 'Expand report'}
               >
                 {isReportExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -232,7 +251,7 @@ export default function StatsView({ hobbies, logs }: StatsViewProps) {
             <button
               onClick={handleGenerateReport}
               disabled={isGenerating}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-season-accent text-white hover:opacity-90 disabled:opacity-60 font-bold text-xs shadow-md shadow-season-accent/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-season-accent text-white hover:opacity-90 disabled:opacity-60 font-bold text-xs shadow-md shadow-season-accent/20 transition-all cursor-pointer"
             >
               {isGenerating ? (
                 <>
@@ -254,67 +273,16 @@ export default function StatsView({ hobbies, logs }: StatsViewProps) {
           </div>
         </div>
 
-        {/* Report body */}
-        {isGenerating && (
-          <div className="px-6 pb-6">
-            <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <div className="relative">
-                <div className="h-12 w-12 rounded-full border-2 border-season-accent/20 border-t-season-accent animate-spin" />
-                <Sparkles className="h-5 w-5 text-season-accent absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-              </div>
-              <p className="text-xs font-bold text-season-muted animate-pulse">
-                Stella is reviewing your hobbies…
-              </p>
-            </div>
+        {/* Report Content Box */}
+        {reportError && (
+          <div className="px-6 pb-6 text-xs text-red-500 font-semibold">
+            {reportError}
           </div>
         )}
 
-        {reportError && !isGenerating && (
-          <div className="px-6 pb-6">
-            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-semibold">
-              {reportError}
-            </div>
-          </div>
-        )}
-
-        {report && !isGenerating && isReportExpanded && (
-          <div className="px-6 pb-6">
-            {/* Decorative divider */}
-            <div className="flex items-center gap-3 mb-5">
-              <div className="flex-1 h-px bg-season-border" />
-              <div className="flex items-center gap-1.5 text-season-accent">
-                <Sparkles className="h-3 w-3 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Stella&apos;s Analysis</span>
-                <Sparkles className="h-3 w-3 animate-pulse" />
-              </div>
-              <div className="flex-1 h-px bg-season-border" />
-            </div>
-
-            {/* Rendered report */}
-            <div className="p-5 rounded-2xl bg-season-bg/60 border border-season-border">
-              <ReportRenderer text={report} />
-            </div>
-
-            <p className="text-[10px] text-season-muted mt-3 text-right font-semibold">
-              Generated by Stella · Based on {hobbies.length} hobbies &amp; {logs.length} activity logs
-            </p>
-          </div>
-        )}
-
-        {/* Empty state — no report yet */}
-        {!report && !isGenerating && !reportError && (
-          <div className="px-6 pb-6">
-            <div className="flex flex-col items-center justify-center py-8 gap-3 rounded-2xl border border-dashed border-season-border bg-season-bg/40">
-              <div className="p-3 rounded-2xl bg-season-accent/10 text-season-accent">
-                <Sparkles className="h-6 w-6" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-season-text">No report generated yet</p>
-                <p className="text-xs text-season-muted mt-1 max-w-xs leading-relaxed">
-                  Click <strong>Generate Report</strong> and Stella will analyze your hobbies &amp; give personalized improvement feedback.
-                </p>
-              </div>
-            </div>
+        {report && isReportExpanded && (
+          <div className="p-6 pt-2 border-t border-season-border/50 bg-season-bg/40 animate-fade-in">
+            <ReportRenderer text={report} />
           </div>
         )}
       </div>
