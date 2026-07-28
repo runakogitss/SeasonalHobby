@@ -1,78 +1,104 @@
-# 🍃 SeasonalHobby
+# 🌿 Seasonal Hobby Hub
 
-**SeasonalHobby** is an intuitive, AI-powered web application designed to help users organize, track, and discover hobbies tailored to the changing seasons. Powered by Next.js, TypeScript, Supabase, and custom AI integration, SeasonalHobby turns personal activity tracking into a curated experience.
+> A distraction-free, high-performance web application designed to help multi-passionate users manage, rotate through diverse hobbies, and overcome decision paralysis.
+> 
+> 
+
+---
+
+## 🌟 Overview
+
+**Seasonal Hobby Hub** helps you organize your hobbies into manageable seasonal rotations, log your activity, and overcome decision paralysis with the assistance of an embedded AI advisor named **Stella**. Built with Next.js, Supabase, and OpenRouter, the application provides cloud persistence, secure authentication, and AI-driven planning.
 
 ---
 
 ## ✨ Features
 
-- **🌸 Seasonal Context Filtering:** Switch seamlessly between seasons (Spring, Summer, Autumn, Winter) to track hobbies specific to each time of year[cite: 1].
-- **🤖 AI Assistant (Stella):** 
-  - Personalized hobby suggestions based on user interests[cite: 1].
-  - Automatic meta generation for new or existing activities[cite: 1].
-  - Custom progress and seasonal report generation[cite: 1].
-- **📓 Journal & Progress Tracking:** Keep logs, detailed notes, and updates on ongoing seasonal projects or habits[cite: 1].
-- **📊 Insights & Stats:** Visual breakdown of your activity, stats, and seasonal completion rates[cite: 1].
-- **🔐 User Authentication & Persistence:** Database integration via **Supabase** with local storage fallback support[cite: 1].
+* **Distraction-Free Dashboard:** Clean interface designed for simple rotation tracking and hobby management.
+
+
+* **AI Advisor (Stella):** Powered by AI Model (`ling-3.0-flash:free`) to deliver personalized hobby planning and decision support.
+
+
+* **Activity & Rotation Tracking:** Record activity logs and manage active versus paused hobbies.
+
+
+* **Backend Security:** PostgreSQL backend with custom enums, performance indices, and Row Level Security (RLS) policies.
+
+
 
 ---
+-
 
 ## 🛠️ Tech Stack
 
-- **Framework:** [Next.js](https://nextjs.org/) (App Router)[cite: 1]
-- **Language:** [TypeScript](https://www.typescriptlang.org/)[cite: 1]
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/) / PostCSS[cite: 1]
-- **Database & Auth:** [Supabase](https://supabase.com/)[cite: 1]
-- **Deployment:** [Vercel](https://vercel.com)[cite: 1]
+* **Frontend:** Next.js
+
+
+* **Database & Authentication:** Supabase (PostgreSQL with RLS)
+
+
+* **AI Model Gateway:** OpenRouter using `poolside/laguna-xs-2.1`
+
 
 ---
 
-## 📂 Project Structure and Instructions 
+## 🗄️ Database Schema
 
-```text
-├── public/                 # Static assets (SVGs, favicon)
-├── src/
-│   ├── app/                # Next.js App Router routes & API endpoints
-│   │   ├── api/            # Serverless API routes (chat, report, meta, suggestions)
-│   │   ├── globals.css     # Global styles & Tailwind directives
-│   │   └── page.tsx        # Main application dashboard
-│   ├── components/         # Modular UI components (Modals, Views, Cards)
-│   ├── context/            # React context (Season Context)
-│   └── lib/                # Database clients, local storage helpers, Supabase configs
-├── supabase/               # Database SQL schema definitions
-└── package.json            # Dependencies and scripts
+The database utilizes PostgreSQL tables equipped with enums and performance indices:
+
+* `hobbies`: Manages user hobby profiles, statuses, and rotation details.
 
 
-🚀 Getting Started
-Prerequisites
-Ensure you have the following installed on your machine:
+* `activity_logs`: Tracks user sessions, time spent, and activity logs.
 
-Node.js (v18.x or later)
 
-npm / yarn / pnpm
 
-Environment Setup
-Create a .env.local file in the root directory and add your credentials:
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+---
 
-Installation
-Clone the repository:
-Step 1 :
-git clone [https://github.com/runakogitss/SeasonalHobby.git](https://github.com/runakogitss/SeasonalHobby.git)
-cd SeasonalHobby
+## 🚀 Getting Started
 
-Step 2 :
+### 1. Prerequisites
+
+Ensure you have Node.js (v18+) and npm/pnpm installed on your machine.
+
+### 2. Installation
+
+Clone the repository and install the project dependencies:
+
+```bash
+git clone https://github.com/your-username/seasonal-hobby-hub.git
+cd seasonal-hobby-hub
 npm install
 
-Step 3 :
+```
+
+### 3. Environment Variables
+
+Create a `.env` (or `.env.local`) file in the root directory and configure your environment variables:
+
+```env
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# OpenRouter AI Credentials
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+```
+
+> ⚠️ **Note:** Keep your `.env` file listed in `.gitignore` to avoid exposing private credentials.
+
+### 4. Running Locally
+
+Start the development server:
+
+```bash
 npm run dev
 
-🗄️ Database Setup
-To run the full backend setup with Supabase:
-Navigate to your Supabase project dashboard. 
-Execute the schema queries provided in supabase/schema.sql inside the SQL Editor.
+```
 
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the app.
 
-📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+---
