@@ -72,7 +72,7 @@ Format strictly as JSON object with no markdown wrappers:
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4500);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -83,7 +83,7 @@ Format strictly as JSON object with no markdown wrappers:
             'X-Title': 'Seasonal Hobby Hub'
           },
           body: JSON.stringify({
-            model: 'poolside/laguna-xs-2.1:free',
+            model: 'inclusionai/ling-3.0-flash:free',
             messages: [
               { role: 'system', content: systemInstruction },
               { role: 'user', content: `Hobby Title: "${title}", Provided Category: "${category || ''}", Season: "${season}"` }

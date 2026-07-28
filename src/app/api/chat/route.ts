@@ -5,7 +5,7 @@ export const runtime = 'edge'; // Edge runtime for fast streaming response
 
 export async function POST(req: NextRequest) {
   try {
-    const { userMessage, hobbiesContext, logsContext } = await req.json();
+    const { userMessage, hobbiesContext, logsContext, messagesHistory } = await req.json();
 
     // 1. Format the context matrix — includes daily focus, progress, brain dump, and micro-goal
     const hobbies = hobbiesContext || [];
@@ -24,30 +24,47 @@ export async function POST(req: NextRequest) {
       ? recentLogs.map((l: any) => `- Completed "${l.micro_goal_completed}" for ${l.hobby_title} on ${l.completed_at}`).join('\n')
       : 'No activity logs yet.';
 
-    const systemInstruction = `You are Stella, a warm and enthusiastic hobby planning advisor for a personal hobby dashboard app called Seasonal Hobby. Your personality is encouraging, insightful, and concise — like a knowledgeable friend who helps people stay consistent with what they love doing.
+    const systemInstruction = `You are Stella, a warm, knowledgeable, and practical personal hobby advisor for Seasonal Hobby.
 
-Your role:
-- Help the user reflect on their hobby progress and mental state
-- Break down overwhelming tasks into highly compressed 5-minute low-friction micro-goals
-- Suggest what to focus on next based on their daily focus, last brain dump, progress, and activity history
-- Reference specific hobby names, progress percentages, and recent completions when relevant
-- Keep responses short, actionable, and uplifting
+Your primary goal is to help users thrive in their hobbies:
+1. DIRECT HOBBY KNOWLEDGE & GUIDANCE: When the user asks a question about any hobby (painting, guitar, cooking, coding, fitness, gardening, etc.), give direct, clear, and actionable advice first! Share specific techniques, beginner recommendations, or step-by-step guidance.
+2. PERSONALIZED DASHBOARD CONTEXT: Use the user's dashboard data as context when relevant. Connect your advice to their actual hobbies, daily focus, micro-goals, or recent progress, but NEVER let data summaries replace answering their direct question.
+3. BITE-SIZED MICRO-GOALS: Help break down big tasks into 5-minute low-friction micro-goals whenever useful.
+
+FORMATTING GUIDELINES FOR CHAT BUBBLES:
+- Keep formatting clean, elegant, and readable in chat bubbles.
+- Do NOT use markdown headers (like ### or ##) or horizontal lines (like ---). Use clean emoji titles instead (e.g., "🎨 Essential Starter Supplies").
+- Use bold text (**like this**) for emphasis and key item names.
+- Use simple bullet points (- or •) for lists.
+- Keep tone friendly, encouraging, and natural.
 
 User's Hobby Dashboard:
 ${contextMatrix || 'No hobbies added yet.'}
 
 Recent Activity Journal (last 5 sessions):
-${logSummary}
-
-Always respond as Stella. Never refer to yourself as an AI model or assistant. Be conversational, caring, and practical. Use the data above to give personalized, specific advice.`;
+${logSummary}`;
 
     const apiKey = process.env.OPENROUTER_API_KEY;
 
-    // 2. If API Key is present, query OpenRouter
+    // Build conversation history array (last 6 messages max)
+    const formattedHistory = Array.isArray(messagesHistory)
+      ? messagesHistory
+          .filter((m: any) => m.content && (m.role === 'user' || m.role === 'assistant'))
+          .slice(-6)
+          .map((m: any) => ({ role: m.role, content: m.content }))
+      : [];
+
+    const apiMessages = [
+      { role: 'system', content: systemInstruction },
+      ...formattedHistory,
+      { role: 'user', content: userMessage }
+    ];
+
+    // 3. Query OpenRouter with inclusionai/ling-3.0-flash:free
     if (apiKey) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6500);
+        const timeoutId = setTimeout(() => controller.abort(), 18000);
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -58,16 +75,10 @@ Always respond as Stella. Never refer to yourself as an AI model or assistant. B
             'X-Title': 'Seasonal Hobby Hub'
           },
           body: JSON.stringify({
-            model: 'poolside/laguna-xs-2.1:free',
-            messages: [
-              { role: 'system', content: systemInstruction },
-              { role: 'user', content: userMessage }
-            ],
+            model: 'inclusionai/ling-3.0-flash:free',
+            messages: apiMessages,
             stream: true,
-            max_tokens: 600,
-            reasoning: {
-              effort: 'low'
-            }
+            max_tokens: 1200
           }),
           signal: controller.signal
         });
@@ -90,64 +101,44 @@ Always respond as Stella. Never refer to yourself as an AI model or assistant. B
       }
     }
 
-    // 3. Fallback: Data-driven simulated streaming response for offline/localStorage testing
+    // 4. Dynamic fallback response for offline testing
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        // Find the most relevant hobby by matching the user's query, else pick the daily focus, else first hobby
         const targetHobby = hobbies.find((h: any) =>
           userMessage.toLowerCase().includes(h.title.toLowerCase()) ||
           userMessage.toLowerCase().includes(h.category.toLowerCase())
-        ) || hobbies.find((h: any) => h.is_daily_focus) || hobbies[0] || { title: 'your hobbies', last_brain_dump: 'none', micro_goal: 'Define your first micro-goal', category: 'general', progress: 0 };
-
-        const lastLog = logs[0];
-        const lastLogLine = lastLog
-          ? `Last completed: "${lastLog.micro_goal_completed}" for ${lastLog.hobby_title} on ${lastLog.completed_at}.`
-          : 'No activity logged yet.';
-
-        const focusHobbies = hobbies.filter((h: any) => h.is_daily_focus);
-        const focusNames = focusHobbies.length > 0
-          ? focusHobbies.map((h: any) => h.title).join(' and ')
-          : 'none set';
+        ) || hobbies.find((h: any) => h.is_daily_focus) || hobbies[0] || { title: 'your hobbies', micro_goal: 'Set a 5-minute goal', progress: 0 };
 
         const finalReasoning = [
           `[Reasoning] Analyzing query: "${userMessage}"\n`,
-          `[Reasoning] Hobby registry: ${hobbies.length} hobbies found.\n`,
-          `[Reasoning] Daily focus hobbies: ${focusNames}.\n`,
-          `[Reasoning] Target hobby selected: "${targetHobby.title}" (${targetHobby.category}) at ${targetHobby.progress ?? 0}% progress.\n`,
-          `[Reasoning] Last brain dump: "${targetHobby.last_brain_dump}"\n`,
-          `[Reasoning] Current micro-goal: "${targetHobby.micro_goal || 'None set'}"\n`,
-          `[Reasoning] Recent journal: ${lastLogLine}\n`,
-          `[Reasoning] Formulating low-friction, actionable next steps...\n\n`
+          `[Reasoning] Model selected: inclusionai/ling-3.0-flash:free\n`,
+          `[Reasoning] Target hobby match: "${targetHobby.title}"\n`,
+          `[Reasoning] Formulating direct hobby guidance and actionable micro-goal...\n\n`
         ];
 
         const finalContent = [
-          `Based on your data, here's my advice for **${targetHobby.title}** (currently at ${targetHobby.progress ?? 0}% progress):\n\n`,
-          `* 🎯 **Your current micro-goal**: "${targetHobby.micro_goal || 'No goal set yet — let\'s define one!'}"\n  Try completing this in a single 5-minute session today.\n\n`,
-          `* 🧠 **Last brain dump recap**: "${targetHobby.last_brain_dump}"\n  Pick up exactly where you left off to avoid re-orientation time.\n\n`,
-          lastLog ? `* ✅ **Great recent win**: You completed "${lastLog.micro_goal_completed}" on ${lastLog.completed_at}. Keep building on that momentum!\n\n` : `* 📝 **Log your first session**: Once you complete a micro-goal, log it to track your momentum!\n\n`,
-          focusHobbies.length > 0
-            ? `Your daily focus is set to **${focusNames}** — stay locked in and resist context-switching. 💪\n\n`
-            : `💡 **Tip**: Mark a hobby as your Daily Focus to reduce decision paralysis each morning.\n\n`,
-          `Would you like me to help you refine your micro-goal or plan your next session? 😊`
+          `Thanks for asking! Here is my advice regarding **${userMessage}**:\n\n`,
+          `* 🌟 **Direct Advice**: To get started or make progress, break down what you want to learn into a single focused concept. Practice for 5-10 minutes consistently.\n\n`,
+          `* 🎯 **Recommended Micro-Goal for ${targetHobby.title}**: "${targetHobby.micro_goal || 'Spend 5 minutes practicing one core step today.'}"\n\n`,
+          `* 💡 **Stella Tip**: Small, low-friction steps build long-term consistency over intense, rare sessions.\n\n`,
+          `Would you like me to tailor this advice further for your daily focus? 😊`
         ];
 
-        // Stream reasoning chunks
         for (const chunk of finalReasoning) {
           const sseData = `data: ${JSON.stringify({
             choices: [{ delta: { reasoning_content: chunk } }]
           })}\n\n`;
           controller.enqueue(encoder.encode(sseData));
-          await new Promise((resolve) => setTimeout(resolve, 80));
+          await new Promise((resolve) => setTimeout(resolve, 60));
         }
 
-        // Stream content chunks
         for (const chunk of finalContent) {
           const sseData = `data: ${JSON.stringify({
             choices: [{ delta: { content: chunk } }]
           })}\n\n`;
           controller.enqueue(encoder.encode(sseData));
-          await new Promise((resolve) => setTimeout(resolve, 150));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));

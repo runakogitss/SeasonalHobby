@@ -60,6 +60,9 @@ Keep the tone warm, specific, and personal. Reference actual hobby titles from t
       });
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -69,12 +72,14 @@ Keep the tone warm, specific, and personal. Reference actual hobby titles from t
         'X-Title': 'Seasonal Hobby Hub'
       },
       body: JSON.stringify({
-        model: 'poolside/laguna-xs-2.1:free',
+        model: 'inclusionai/ling-3.0-flash:free',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 700,
-        temperature: 0.75
-      })
+        max_tokens: 1000,
+        temperature: 0.7
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`OpenRouter error: ${response.status}`);

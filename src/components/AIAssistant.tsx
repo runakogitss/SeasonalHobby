@@ -18,6 +18,75 @@ interface AIAssistantProps {
   onApplyMicroGoal?: (hobbyTitle: string, microGoal: string) => void;
 }
 
+// Helper component to cleanly render inline formatting (bolding, clean headers, blockquotes, dividers)
+function FormattedText({ text }: { text: string }) {
+  if (!text) return null;
+
+  const lines = text.split('\n');
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, lineIdx) => {
+        const trimmed = line.trim();
+
+        // 1. Horizontal divider
+        if (trimmed === '---' || trimmed === '***' || trimmed === '___') {
+          return <hr key={lineIdx} className="my-2 border-season-border/50" />;
+        }
+
+        // 2. Blockquote (> line)
+        if (trimmed.startsWith('>')) {
+          const quoteContent = trimmed.replace(/^>\s*/, '').replace(/^[*_]{1,2}(.*?)[*_]{1,2}$/, '$1');
+          return (
+            <div key={lineIdx} className="p-2.5 my-2 rounded-xl bg-season-accent/10 border border-season-accent/25 font-bold text-season-text text-[11px] leading-relaxed">
+              ⚡ {parseInlineBold(quoteContent)}
+            </div>
+          );
+        }
+
+        // 3. Headers (#, ##, ###)
+        if (trimmed.startsWith('#')) {
+          const headerText = trimmed.replace(/^#+\s*/, '');
+          return (
+            <div key={lineIdx} className="font-extrabold text-xs text-season-text mt-3 mb-1 tracking-tight">
+              {parseInlineBold(headerText)}
+            </div>
+          );
+        }
+
+        // 4. Bullet point (- or * or •)
+        if (trimmed.match(/^[-*•]\s+/)) {
+          const bulletText = trimmed.replace(/^[-*•]\s+/, '');
+          return (
+            <div key={lineIdx} className="flex items-start gap-1.5 pl-1 my-0.5">
+              <span className="text-season-accent font-bold leading-none mt-1">•</span>
+              <span className="flex-1">{parseInlineBold(bulletText)}</span>
+            </div>
+          );
+        }
+
+        // 5. Empty line spacing
+        if (!trimmed) {
+          return <div key={lineIdx} className="h-0.5" />;
+        }
+
+        // 6. Regular line
+        return <div key={lineIdx}>{parseInlineBold(line)}</div>;
+      })}
+    </div>
+  );
+}
+
+function parseInlineBold(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={idx} className="font-extrabold text-season-text">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -67,7 +136,8 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
         body: JSON.stringify({
           userMessage: text,
           hobbiesContext: hobbies,
-          logsContext: logs
+          logsContext: logs,
+          messagesHistory: messages
         })
       });
 
@@ -78,7 +148,6 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
       // 4. Stream response using SSE reader
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      // Use a mutable accumulator object to avoid react-hooks/immutability lint error
       const acc = { content: '', reasoning: '' };
 
       if (!reader) {
@@ -99,7 +168,6 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
 
             try {
               const dataObj = JSON.parse(dataStr);
-              // Check if OpenRouter format or simulator format
               const delta = dataObj.choices?.[0]?.delta;
               if (delta) {
                 const reasoningChunk = delta.reasoning || delta.reasoning_content || (Array.isArray(delta.reasoning_details) ? delta.reasoning_details.map((d: any) => d.text || '').join('') : '');
@@ -110,7 +178,6 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
                   acc.content += delta.content;
                 }
 
-                // Update the messages list
                 setMessages(prev => {
                   const updated = [...prev];
                   updated[streamMessageIndex] = {
@@ -167,7 +234,6 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
   const handleApplyClick = (text: string) => {
     if (!onApplyMicroGoal) return;
 
-    // Match the text against actual hobby titles from the user's real hobby list
     const lowerText = text.toLowerCase();
     const matchedHobby = hobbies.find(h =>
       lowerText.includes(h.title.toLowerCase()) ||
@@ -175,15 +241,13 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
     ) || hobbies.find(h => h.is_daily_focus) || hobbies[0];
 
     if (matchedHobby) {
-      // Try to extract a micro-goal sentence from the AI response
-      const goalMatch = text.match(/["\u201c]([^"\u201d]{10,})["\u201d]/); // quoted strings
+      const goalMatch = text.match(/["\u201c]([^"\u201d]{10,})["\u201d]/);
       const extractedGoal = goalMatch ? goalMatch[1] : matchedHobby.micro_goal || 'Complete the AI suggested step.';
       onApplyMicroGoal(matchedHobby.title, extractedGoal);
       alert(`Applied suggestion to "${matchedHobby.title}":\n"${extractedGoal}"`);
     }
   };
 
-  // Build dynamic quick-suggestions based on user's real data
   const dailyFocusHobbies = hobbies.filter(h => h.is_daily_focus);
   const firstHobby = dailyFocusHobbies[0] || hobbies[0];
 
@@ -242,7 +306,7 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
 
               {/* Message Bubble */}
               <div className="max-w-[85%] space-y-2">
-                {/* Reasoning Accordion (Strips and renders separately) */}
+                {/* Reasoning Accordion */}
                 {showReasoning && (
                   <div className="rounded-xl border border-dashed border-season-border bg-season-bg/40 overflow-hidden text-[10px] font-semibold text-season-muted">
                     <button
@@ -271,15 +335,15 @@ export default function AIAssistant({ hobbies, logs, onApplyMicroGoal }: AIAssis
                 {/* Final Content bubble */}
                 {(msg.content || !msg.reasoning) && (
                   <div className={`
-                    p-3.5 rounded-2xl text-xs font-semibold leading-relaxed whitespace-pre-line border
+                    p-3.5 rounded-2xl text-xs font-semibold leading-relaxed border
                     ${isAssistant 
                       ? 'bg-season-card border-season-border text-season-text' 
                       : 'bg-season-accent/10 border-season-accent/20 text-season-text'
                     }
                   `}>
-                    {msg.content}
+                    <FormattedText text={msg.content} />
                     {msg.isStreaming && (
-                      <span className="inline-block w-1 h-3 bg-season-accent animate-pulse ml-1" />
+                      <span className="inline-block w-1 h-3 bg-season-accent animate-pulse ml-1 mt-1" />
                     )}
                     
                     {/* Inline action to apply micro goal if suggestions were generated */}

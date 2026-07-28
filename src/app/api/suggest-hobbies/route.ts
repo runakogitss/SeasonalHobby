@@ -116,7 +116,7 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5500);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -127,13 +127,13 @@ Format your response strictly as a JSON array of 4 objects, with no markdown cod
             'X-Title': 'Seasonal Hobby Hub'
           },
           body: JSON.stringify({
-            model: 'poolside/laguna-xs-2.1:free',
+            model: 'inclusionai/ling-3.0-flash:free',
             messages: [
               { role: 'system', content: systemInstruction },
               { role: 'user', content: 'Suggest 4 new creative hobbies.' }
             ],
             temperature: 0.7,
-            max_tokens: 550
+            max_tokens: 800
           }),
           signal: controller.signal
         });
