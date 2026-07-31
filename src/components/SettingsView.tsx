@@ -1,22 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, ShieldAlert, User, Trash2, LogOut, LogIn, CheckCircle2, AlertCircle, Cloud } from 'lucide-react';
-import { isSandboxModeActive } from '@/lib/storage';
-import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { Settings as SettingsIcon, Save, User, LogOut, LogIn, CheckCircle2, AlertCircle, Cloud } from 'lucide-react';
 
 interface SettingsViewProps {
-  onResetData: () => void;
+  onResetData?: () => void;
   user: any;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
 }
 
-export default function SettingsView({ onResetData, user, onOpenAuthModal, onSignOut }: SettingsViewProps) {
+export default function SettingsView({ user, onOpenAuthModal, onSignOut }: SettingsViewProps) {
   const [userName, setUserName] = useState('Reynard');
   const [isSaved, setIsSaved] = useState(false);
-  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
-  const [isClearSandboxConfirmOpen, setIsClearSandboxConfirmOpen] = useState(false);
 
   // Load display name and remove any legacy keys stored in localStorage
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -161,86 +157,7 @@ export default function SettingsView({ onResetData, user, onOpenAuthModal, onSig
           </button>
         </div>
       </form>
-
-      {/* Sandbox Environment Card */}
-      <div className="p-6 bg-purple-50 dark:bg-purple-950/10 border border-purple-200 dark:border-purple-950/50 rounded-3xl space-y-4">
-        <h3 className="font-bold text-sm text-purple-700 dark:text-purple-400 flex items-center gap-2">
-          <span>🧪</span>
-          Testing Sandbox Environment
-        </h3>
-        <p className="text-xs text-season-muted leading-relaxed">
-          Switch between clean offline sandbox mode (no hobbies) and active cloud storage to test UI states.
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              const active = localStorage.getItem('sandbox-mode-enabled') === 'true';
-              localStorage.setItem('sandbox-mode-enabled', String(!active));
-              window.location.reload();
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-              isSandboxModeActive()
-                ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20'
-                : 'bg-season-card text-purple-600 border-season-border hover:bg-season-bg'
-            }`}
-          >
-            {isSandboxModeActive() ? '🧪 Sandbox Enabled' : '🧪 Enable Empty Sandbox'}
-          </button>
-          
-          {isSandboxModeActive() && (
-            <button
-              type="button"
-              onClick={() => setIsClearSandboxConfirmOpen(true)}
-              className="px-4 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-bold transition-all cursor-pointer"
-            >
-              Clear Sandbox Slate
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="p-6 bg-red-50 dark:bg-red-950/10 border border-red-200 dark:border-red-950/50 rounded-3xl space-y-4">
-        <h3 className="font-bold text-sm text-red-600 flex items-center gap-2">
-          <ShieldAlert className="h-5 w-5 text-red-500" />
-          Reset Defaults
-        </h3>
-        <p className="text-xs text-season-muted">
-          Erase local storage milestones and restore system demo datasets.
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsResetConfirmOpen(true)}
-          className="px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-bold shadow-md shadow-red-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
-        >
-          <Trash2 className="h-4 w-4" />
-          Reset Database Defaults
-        </button>
-      </div>
-
-      {/* Modals */}
-      <ConfirmDeleteModal
-        isOpen={isResetConfirmOpen}
-        title="Reset Database to Defaults"
-        message="Are you sure you want to restore the database to its default hobbies and logs? This will erase custom local entries!"
-        confirmLabel="Reset Everything"
-        onConfirm={() => onResetData()}
-        onClose={() => setIsResetConfirmOpen(false)}
-      />
-
-      <ConfirmDeleteModal
-        isOpen={isClearSandboxConfirmOpen}
-        title="Empty Sandbox Slate"
-        message="Are you sure you want to completely empty the Sandbox database? All sandbox cards will be removed."
-        confirmLabel="Clear Sandbox"
-        onConfirm={() => {
-          localStorage.setItem('seasonal-hobbies-sandbox', JSON.stringify([]));
-          localStorage.setItem('seasonal-activity-logs-sandbox', JSON.stringify([]));
-          window.location.reload();
-        }}
-        onClose={() => setIsClearSandboxConfirmOpen(false)}
-      />
     </div>
   );
 }
+
