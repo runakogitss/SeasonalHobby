@@ -156,14 +156,7 @@ const DEFAULT_ACTIVITY_LOGS: ActivityLog[] = [
 // Helper to check for client side
 const isClient = () => typeof window !== 'undefined';
 
-export function isSandboxModeActive(): boolean {
-  if (isClient()) {
-    return localStorage.getItem('sandbox-mode-enabled') === 'true';
-  }
-  return false;
-}
-
-const getHobbiesStorageKey = () => isSandboxModeActive() ? 'seasonal-hobbies-sandbox' : 'seasonal-hobbies';
+const getHobbiesStorageKey = () => 'seasonal-hobbies';
 
 export function getHobbies(): Hobby[] {
   if (!isClient()) return [...DEFAULT_SUMMER_HOBBIES, ...DEFAULT_WINTER_HOBBIES];
@@ -171,7 +164,7 @@ export function getHobbies(): Hobby[] {
   const key = getHobbiesStorageKey();
   const saved = localStorage.getItem(key);
   if (!saved) {
-    const defaultData = isSandboxModeActive() ? [] : [...DEFAULT_SUMMER_HOBBIES, ...DEFAULT_WINTER_HOBBIES];
+    const defaultData = [...DEFAULT_SUMMER_HOBBIES, ...DEFAULT_WINTER_HOBBIES];
     localStorage.setItem(key, JSON.stringify(defaultData));
     return defaultData;
   }
@@ -268,7 +261,7 @@ export function deleteHobby(hobbyId: string): Hobby[] {
   return filtered;
 }
 
-const getLogsStorageKey = () => isSandboxModeActive() ? 'seasonal-activity-logs-sandbox' : 'seasonal-activity-logs';
+const getLogsStorageKey = () => 'seasonal-activity-logs';
 
 export function getActivityLogs(): ActivityLog[] {
   if (!isClient()) return DEFAULT_ACTIVITY_LOGS;
@@ -276,7 +269,7 @@ export function getActivityLogs(): ActivityLog[] {
   const key = getLogsStorageKey();
   const saved = localStorage.getItem(key);
   if (!saved) {
-    const defaultData = isSandboxModeActive() ? [] : DEFAULT_ACTIVITY_LOGS;
+    const defaultData = DEFAULT_ACTIVITY_LOGS;
     localStorage.setItem(key, JSON.stringify(defaultData));
     return defaultData;
   }

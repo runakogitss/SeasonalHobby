@@ -14,8 +14,7 @@ import {
   markHobbyGoalCompleted, 
   saveActivityLogs,
   Hobby, 
-  ActivityLog,
-  isSandboxModeActive
+  ActivityLog
 } from '@/lib/storage';
 import {
   fetchHobbiesFromDb,
@@ -79,16 +78,8 @@ export default function Home() {
   // Error/Toast State
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
-  // Sandbox Mode State
-  const [isSandbox, setIsSandbox] = useState(false);
-
-  const isSandboxRef = useRef(isSandbox);
   const userIdRef = useRef<string | null>(null);
   const loadDataRef = useRef<(authUserId?: string | null) => Promise<void>>(async () => {});
-
-  useEffect(() => {
-    isSandboxRef.current = isSandbox;
-  }, [isSandbox]);
 
   const showToast = (message: string) => {
     setErrorToast(message);
@@ -98,7 +89,7 @@ export default function Home() {
   // Fetch datasets either from Supabase (if logged in) or LocalStorage
   const loadData = useCallback(async (authUserId?: string | null) => {
     const resolvedUserId = authUserId ?? userIdRef.current;
-    const useCloud = Boolean(resolvedUserId && !isSandboxRef.current);
+    const useCloud = Boolean(resolvedUserId);
 
     if (useCloud && resolvedUserId) {
       try {
@@ -138,10 +129,7 @@ export default function Home() {
   // Auth session initialization and listener (runs once)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const mode = localStorage.getItem('sandbox-mode-enabled') === 'true';
-      isSandboxRef.current = mode;
-      setIsSandbox(mode);
-
+      localStorage.removeItem('sandbox-mode-enabled');
       const savedName = localStorage.getItem('settings-user-name');
       if (savedName) setUserName(savedName);
     }
@@ -161,7 +149,7 @@ export default function Home() {
 
   // Supabase Real-time Channel listener
   useEffect(() => {
-    if (!user?.id || isSandbox) return;
+    if (!user?.id) return;
 
     const userId = user.id;
     let reloadTimer: ReturnType<typeof setTimeout> | null = null;
@@ -183,7 +171,7 @@ export default function Home() {
       if (reloadTimer) clearTimeout(reloadTimer);
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isSandbox]);
+  }, [user?.id]);
 
   // Refresh display name after saving in Settings
   useEffect(() => {
@@ -192,15 +180,6 @@ export default function Home() {
       if (savedName) setUserName(savedName);
     }
   }, [activeTab]);
-
-  const handleToggleSandbox = () => {
-    const nextSandbox = !isSandbox;
-    localStorage.setItem('sandbox-mode-enabled', String(nextSandbox));
-    isSandboxRef.current = nextSandbox;
-    setIsSandbox(nextSandbox);
-    loadData(userIdRef.current);
-    showToast(nextSandbox ? "Switched to clean Sandbox Mode!" : "Switched to Active Data Mode!");
-  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -211,7 +190,7 @@ export default function Home() {
   // State Mutators
   const handleToggleFocus = async (id: string) => {
     try {
-      if (user && !isSandbox) {
+      if (user) {
         const target = hobbies.find(h => h.id === id);
         if (target) {
           await toggleDailyFocusInDb(target);
@@ -259,7 +238,7 @@ export default function Home() {
         progress: 0
       };
 
-      if (user && !isSandbox) {
+      if (user) {
         await addHobbyToDb(user.id, newHobbyData);
         await loadData(user.id);
       } else {
@@ -275,7 +254,7 @@ export default function Home() {
 
   const handleSaveHobby = async (hobbyData: any) => {
     try {
-      if (user && !isSandbox) {
+      if (user) {
         if (hobbyData.id) {
           await updateHobbyInDb(hobbyData as Hobby);
         } else {
@@ -320,7 +299,7 @@ export default function Home() {
 
   const handleDeleteHobby = async (id: string) => {
     try {
-      if (user && !isSandbox) {
+      if (user) {
         await deleteHobbyFromDb(id);
         await loadData(user.id);
       } else {
@@ -341,7 +320,7 @@ export default function Home() {
       const targetHobby = hobbies.find(h => h.id === id);
       if (!targetHobby) throw new Error('Hobby not found');
 
-      if (user && !isSandbox) {
+      if (user) {
         await markHobbyGoalCompletedInDb(user.id, targetHobby, nextDump, nextGoal, nextNotes);
         await loadData(user.id);
       } else {
@@ -379,7 +358,7 @@ export default function Home() {
         updated_at: new Date().toISOString()
       };
 
-      if (user && !isSandbox) {
+      if (user) {
         await updateHobbyInDb(updatedHobby);
         await loadData(user.id);
       } else {
@@ -423,7 +402,7 @@ export default function Home() {
 
   const handleDeleteLog = async (id: string) => {
     try {
-      if (user && !isSandbox) {
+      if (user) {
         await supabase.from('activity_logs').delete().eq('id', id);
         await loadData(user.id);
       } else {
@@ -479,25 +458,17 @@ export default function Home() {
           </button>
           
           <span className="font-bold text-xs leading-tight tracking-tight uppercase flex items-center gap-1.5">
-            Seasonal Hub {isSandbox && <span className="px-1.5 py-0.5 rounded-md bg-purple-600 text-white text-[9px] font-black tracking-normal">SANDBOX</span>}
+            Seasonal Hub
           </span>
 
           <div className="flex items-center gap-2">
-            {!user ? (
+            {!user && (
               <button
                 onClick={() => setIsAuthModalOpen(true)}
                 className="p-1.5 rounded-lg text-season-accent border border-season-accent/30 font-bold text-xs"
                 title="Sign In"
               >
                 <LogIn className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                onClick={handleToggleSandbox}
-                className={`p-1.5 rounded-lg border text-xs font-bold ${isSandbox ? 'bg-purple-600 text-white border-purple-600' : 'bg-season-card text-purple-600 border-season-border'}`}
-                title="Toggle Sandbox Mode"
-              >
-                🧪
               </button>
             )}
             <button
@@ -522,27 +493,13 @@ export default function Home() {
             {/* AI Floating Toggle & User Avatar */}
             <div className="flex items-center gap-4">
               {/* Account Login / Sign in state button */}
-              {!user ? (
+              {!user && (
                 <button
                   onClick={() => setIsAuthModalOpen(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-season-accent text-white shadow-md shadow-season-accent/25 hover:opacity-90 transition-all cursor-pointer"
                 >
                   <Cloud className="w-4 h-4" />
                   <span>Account Login</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleToggleSandbox}
-                  className={`
-                    flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer
-                    ${isSandbox 
-                      ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20' 
-                      : 'bg-season-card text-purple-600 border-season-border hover:bg-season-bg'
-                    }
-                  `}
-                >
-                  <span>🧪</span>
-                  <span>{isSandbox ? 'Sandbox Mode' : 'Sandbox (Empty Slate)'}</span>
                 </button>
               )}
 
