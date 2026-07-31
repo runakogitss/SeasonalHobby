@@ -11,7 +11,7 @@ interface SettingsViewProps {
 }
 
 export default function SettingsView({ user, onOpenAuthModal, onSignOut }: SettingsViewProps) {
-  const [userName, setUserName] = useState('Reynard');
+  const [userName, setUserName] = useState('Guest');
   const [isSaved, setIsSaved] = useState(false);
 
   // Load display name and remove any legacy keys stored in localStorage
@@ -20,6 +20,7 @@ export default function SettingsView({ user, onOpenAuthModal, onSignOut }: Setti
     if (typeof window !== 'undefined') {
       const savedName = localStorage.getItem('settings-user-name');
       if (savedName) setUserName(savedName);
+      else setUserName('Guest');
 
       localStorage.removeItem('settings-supabase-url');
       localStorage.removeItem('settings-supabase-anon-key');

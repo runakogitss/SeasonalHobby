@@ -56,19 +56,19 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [hobbies, setHobbies] = useState<Hobby[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [userName, setUserName] = useState('Reynard');
+  const [userName, setUserName] = useState('Guest');
   const [user, setUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  
+
   // Modal States
   const [selectedHobby, setSelectedHobby] = useState<Hobby | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
-  
+
   // Mobile Nav/Sidebar States
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  
+
   // AI Panel Drawer State
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
 
@@ -122,6 +122,12 @@ export default function Home() {
 
     if (userChanged) {
       setUser(nextUser);
+      if (!nextUser) {
+        setUserName('Guest');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('settings-user-name', 'Guest');
+        }
+      }
       loadDataRef.current(nextUserId);
     }
   }, []);
@@ -183,6 +189,10 @@ export default function Home() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setUserName('Guest');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('settings-user-name', 'Guest');
+    }
     syncAuthUser(null);
     showToast("Successfully signed out.");
   };
@@ -523,7 +533,7 @@ export default function Home() {
                   else setActiveTab('settings');
                 }}
                 className="flex items-center gap-2.5 border-l border-season-border pl-4 text-left cursor-pointer group"
-                title={user ? "Account Logged In (Click to manage)" : "Click to Account Login"}
+                title={user ? "Account Logged In (Click to manage)" : "Guest Login (Click to Sign In)"}
               >
                 <div className="w-9 h-9 rounded-full bg-season-bg border border-season-border flex items-center justify-center text-season-muted text-sm font-black shadow-xs group-hover:border-season-accent transition-colors">
                   {getDisplayName().charAt(0).toUpperCase()}
@@ -531,7 +541,7 @@ export default function Home() {
                 <div>
                   <p className="text-xs font-bold leading-none group-hover:text-season-accent transition-colors">{getDisplayName()}</p>
                   <span className="text-[10px] text-season-muted capitalize font-semibold block mt-0.5">
-                    {user ? 'Account Logged In' : 'Account Login'}
+                    {user ? 'Account Logged In' : 'Guest Login'}
                   </span>
                 </div>
               </button>
