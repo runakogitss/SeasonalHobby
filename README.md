@@ -38,7 +38,7 @@
 * **Database & Authentication:** Supabase (PostgreSQL with RLS)
 
 
-* **AI Model Gateway:** OpenRouter using `poolside/laguna-xs-2.1`
+* **AI Model Gateway:** OpenRouter using `ling-3.0-flash:free`
 
 
 ---
